@@ -1,3 +1,6 @@
+[![MSBuild](https://github.com/anpho/WindowsExplorerExtension/actions/workflows/msbuild.yml/badge.svg)](https://github.com/anpho/WindowsExplorerExtension/actions/workflows/msbuild.yml)
+
+
 # WindowsExplorerExtension
 Extensions for windows explorer, tested on windows 10 & windows 11. What we have here?
 
