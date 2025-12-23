@@ -78,14 +78,14 @@
     <OutDir>$(SolutionDir)\debug\</OutDir>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
-    <IntDir>$(SolutionDir)\debug\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)\debug\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <LinkIncremental>true</LinkIncremental>
     <TargetName>$(ProjectName)_x86</TargetName>
     <OutDir>$(SolutionDir)\debug\</OutDir>
-    <IntDir>$(SolutionDir)\debug\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)\debug\$(Platform)\$(Configuration)\</IntDir>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
@@ -94,7 +94,7 @@
     <LinkIncremental>false</LinkIncremental>
     <TargetName>$(ProjectName)_x86</TargetName>
     <OutDir>$(SolutionDir)\build\</OutDir>
-    <IntDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)release\$(Platform)\$(Configuration)\</IntDir>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <GenerateManifest>false</GenerateManifest>
@@ -107,7 +107,7 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <GenerateManifest>false</GenerateManifest>
-    <IntDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)release\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
