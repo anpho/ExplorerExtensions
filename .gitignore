@@ -1,0 +1,42 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+/src/.vs
+/src/build
+/src/debug
+/src/packages
+/src/ExplorerEnhancement/Win32
+/src/ExplorerEnhancement/x64
+/src/ExplorerEnhancement/ExplorerEnhancement_i.c
+/src/ExplorerEnhancement/ExplorerEnhancement_i.h
+/src/ExplorerEnhancement/ExplorerEnhancement_p.c
