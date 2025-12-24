@@ -59,4 +59,7 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="ExplorerEnhancementManager.exe.manifest" />
+  </ItemGroup>
 </Project>

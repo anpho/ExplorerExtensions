@@ -3,6 +3,9 @@
 #include "resource.h"
 #include "MainDialog.h"
 #include "RegistryHelper.h"
+#include <commctrl.h>
+
+#pragma comment(lib, "comctl32.lib")
 
 // 处理命令行参数
 BOOL ProcessCommandLine(LPWSTR lpCmdLine, CRegistryHelper& registryHelper)
@@ -51,6 +54,12 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance,
                    _In_ LPWSTR    lpCmdLine, 
                    _In_ int       nCmdShow)
 {
+    // 初始化通用控件和视觉样式
+    INITCOMMONCONTROLSEX iccex;
+    iccex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+    iccex.dwICC = ICC_STANDARD_CLASSES | ICC_WIN95_CLASSES;
+    InitCommonControlsEx(&iccex);
+
     HRESULT hRes = ::CoInitialize(NULL);
     ATLASSERT(SUCCEEDED(hRes));
 
