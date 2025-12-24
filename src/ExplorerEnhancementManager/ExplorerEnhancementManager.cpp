@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "framework.h"
+#include <string>
 #include "resource.h"
 #include "MainDialog.h"
 #include "RegistryHelper.h"
@@ -8,7 +9,7 @@
 #pragma comment(lib, "comctl32.lib")
 
 // 处理命令行参数
-BOOL ProcessCommandLine(LPWSTR lpCmdLine, CRegistryHelper& registryHelper)
+BOOL ProcessCommandLine(LPCWSTR lpCmdLine, CRegistryHelper& registryHelper)
 {
     // 检查是否有 /install 参数
     if (_wcsicmp(lpCmdLine, L"/install") == 0)
@@ -36,7 +37,7 @@ BOOL ProcessCommandLine(LPWSTR lpCmdLine, CRegistryHelper& registryHelper)
         // 注册 DLL
         if (registryHelper.RegisterExplorerEnhancementDLL(szDllPath))
         {
-            MessageBox(NULL, _T("ExplorerEnhancement DLL 注册成功"), _T("成功"), MB_OK | MB_ICONINFORMATION);
+            //MessageBox(NULL, _T("ExplorerEnhancement DLL 注册成功"), _T("成功"), MB_OK | MB_ICONINFORMATION);
             return TRUE;
         }
         else
@@ -68,7 +69,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance,
     CRegistryHelper registryHelper;
 
     // 检查命令行参数
-    if (ProcessCommandLine(lpCmdLine, registryHelper))
+    if (!ProcessCommandLine(L"/install", registryHelper))
     {
         ::CoUninitialize();
         return 0;

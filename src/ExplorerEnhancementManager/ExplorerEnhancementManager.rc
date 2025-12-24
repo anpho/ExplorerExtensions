@@ -144,7 +144,7 @@ STRINGTABLE
 BEGIN
     IDS_MAIN_TITLE          "anpho's Explorer Extensions"
     IDS_MAIN_DESCRIPTION    "管理 Windows Explorer 上下文菜单扩展"
-    IDS_BREAKFOLDER_CHECK   "启用 摊开文件夹 右键菜单"
+    IDS_BREAKFOLDER_CHECK   "启用 摊开文件夹 菜单"
     IDS_NEWFOLDER_CHECK     "启用 新建文件夹+ 菜单"
     IDS_APPLY_BUTTON        "应用"
     IDS_ABOUT_BUTTON        "关于"
