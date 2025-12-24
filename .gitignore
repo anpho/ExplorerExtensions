@@ -35,8 +35,11 @@
 /src/build
 /src/debug
 /src/packages
-/src/ExplorerEnhancement/Win32
-/src/ExplorerEnhancement/x64
 /src/ExplorerEnhancement/ExplorerEnhancement_i.c
 /src/ExplorerEnhancement/ExplorerEnhancement_i.h
 /src/ExplorerEnhancement/ExplorerEnhancement_p.c
+/src/ExplorerEnhancement/debug/
+/src/ExplorerEnhancementManager/ExplorerEnhancementManager.aps
+/src/ExplorerEnhancementManager/debug/
+
+.trae/
