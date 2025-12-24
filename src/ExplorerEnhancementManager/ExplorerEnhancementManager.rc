@@ -1,35 +1,66 @@
-﻿// ExplorerEnhancementManager.rc
-// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Microsoft Visual C++ generated resource script.
+//
+#pragma code_page(65001)
 
 #include "resource.h"
-#include "windows.h"
 
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
 
 /////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
 // 中文(简体，中国) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
-#ifdef _WIN32
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
-#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-IDD_MAIN_DIALOG DIALOGEX 0, 0, 320, 180
+IDD_MAIN_DIALOG DIALOGEX 0, 0, 310, 177
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Explorer 上下文菜单管理器"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     CONTROL         "启用 BreakFolder 菜单",IDC_BREAKFOLDER_CHECK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,30,200,15
     CONTROL         "启用 NewFolder 菜单",IDC_NEWFOLDER_CHECK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,50,200,15
-    DEFPUSHBUTTON   "应用",IDC_APPLY_BUTTON,20,100,80,25
-    PUSHBUTTON      "关于",IDC_ABOUT_BUTTON,120,100,80,25
-    PUSHBUTTON      "退出",IDC_EXIT_BUTTON,220,100,80,25
+    DEFPUSHBUTTON   "应用",IDC_APPLY_BUTTON,135,145,80,25,0,WS_EX_TRANSPARENT
+    PUSHBUTTON      "关于",IDC_ABOUT_BUTTON,7,145,80,25
+    PUSHBUTTON      "退出",IDC_EXIT_BUTTON,223,145,80,25,0,WS_EX_TRANSPARENT
     LTEXT           "管理 Windows Explorer 上下文菜单扩展",IDC_STATIC,20,10,280,15
 END
 
@@ -38,12 +69,59 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "关于 ExplorerEnhancementManager"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    ICON            IDI_APPLICATION,IDC_STATIC,10,10,20,20
+    ICON            32512,IDC_STATIC,10,10,20,20
     LTEXT           "Explorer 扩展上下文菜单管理器 v1.0",IDC_STATIC,40,10,210,15
     LTEXT           "用于管理 Windows Explorer 上下文菜单扩展",IDC_STATIC,20,40,220,15
     LTEXT           "支持网站: https://github.com/anpho/WindowsExplorerExtension",IDC_STATIC,20,70,220,60
     DEFPUSHBUTTON   "确定",IDOK,100,140,60,25,WS_GROUP
 END
 
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 303
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 170
+    END
+
+    IDD_ABOUT_DIALOG, DIALOG
+    BEGIN
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_DIALOG1 AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
 #endif    // 中文(简体，中国) resources
 /////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

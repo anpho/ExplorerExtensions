@@ -198,12 +198,12 @@
     <ClCompile Include="ExplorerEnhancementManager.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="ExplorerEnhancementManager.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\ExplorerEnhancement\ExplorerEnhancement.vcxproj">
       <Project>{040359dd-8646-46db-9f86-d04b6a80705e}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ExplorerEnhancementManager.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
