@@ -10,6 +10,25 @@ LRESULT CMainDialog::OnInitDialog(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
     // 初始化UI状态
     UpdateUI();
 
+    // 动态加载字符串资源，设置对话框标题和控件文本
+    CString strTitle, strBreakFolder, strNewFolder, strApply, strAbout, strExit;
+    strTitle.LoadString(IDS_MAIN_TITLE);
+    strBreakFolder.LoadString(IDS_BREAKFOLDER_CHECK);
+    strNewFolder.LoadString(IDS_NEWFOLDER_CHECK);
+    strApply.LoadString(IDS_APPLY_BUTTON);
+    strAbout.LoadString(IDS_ABOUT_BUTTON);
+    strExit.LoadString(IDS_EXIT_BUTTON);
+
+    // 设置对话框标题
+    SetWindowText(strTitle);
+    // 设置复选框文本
+    SetDlgItemText(IDC_BREAKFOLDER_CHECK, strBreakFolder);
+    SetDlgItemText(IDC_NEWFOLDER_CHECK, strNewFolder);
+    // 设置按钮文本
+    SetDlgItemText(IDC_APPLY_BUTTON, strApply);
+    SetDlgItemText(IDC_ABOUT_BUTTON, strAbout);
+    SetDlgItemText(IDC_EXIT_BUTTON, strExit);
+
     bHandled = FALSE;
     return TRUE;
 }
@@ -68,5 +87,8 @@ void CMainDialog::ApplyChanges()
     m_registryHelper.SetNewFolderEnabled(bNewFolderEnabled);
 
     // 提示用户需要重启Explorer
-    MessageBox(_T("设置已应用，请重启Windows Explorer以查看更改。"), _T("信息"), MB_OK | MB_ICONINFORMATION);
+    CString strMessage, strTitle;
+    strMessage.LoadString(IDS_INFO_RESTART_EXPLORER);
+    strTitle.LoadString(IDS_INFO_TITLE);
+    MessageBox(strMessage, strTitle, MB_OK | MB_ICONINFORMATION);
 }

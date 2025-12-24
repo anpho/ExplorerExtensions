@@ -14,12 +14,27 @@
 #define IDC_EXIT_BUTTON                 1005
 #define IDC_BUY_BUTTON                  1006
 
+// 字符串资源ID
+#define IDS_MAIN_TITLE                  200
+#define IDS_MAIN_DESCRIPTION            201
+#define IDS_BREAKFOLDER_CHECK           202
+#define IDS_NEWFOLDER_CHECK             203
+#define IDS_APPLY_BUTTON                204
+#define IDS_ABOUT_BUTTON                205
+#define IDS_EXIT_BUTTON                 206
+#define IDS_ABOUT_TITLE                 207
+#define IDS_ABOUT_DESCRIPTION           208
+#define IDS_OK_BUTTON                   209
+#define IDS_BUY_BUTTON_TEXT             210
+#define IDS_INFO_TITLE                  211
+#define IDS_INFO_RESTART_EXPLORER       212
+
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        109
+#define _APS_NEXT_RESOURCE_VALUE        213
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1006
 #define _APS_NEXT_SYMED_VALUE           101
