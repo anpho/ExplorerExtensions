@@ -41,5 +41,6 @@
 /src/ExplorerEnhancement/debug/
 /src/ExplorerEnhancementManager/ExplorerEnhancementManager.aps
 /src/ExplorerEnhancementManager/debug/
-
+/src/ExplorerEnhancement/release/
+/src/ExplorerEnhancementManager/release/
 .trae/

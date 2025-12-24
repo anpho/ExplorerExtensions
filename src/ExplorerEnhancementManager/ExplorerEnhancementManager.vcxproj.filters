@@ -62,4 +62,9 @@
   <ItemGroup>
     <Manifest Include="ExplorerEnhancementManager.exe.manifest" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="C:\Users\anpho\Desktop\icon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
 </Project>
