@@ -94,7 +94,7 @@
     <LinkIncremental>false</LinkIncremental>
     <TargetName>$(ProjectName)_x86</TargetName>
     <OutDir>$(SolutionDir)\build\</OutDir>
-    <IntDir>$(ProjectDir)release\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)\release\$(Platform)\$(Configuration)\</IntDir>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <GenerateManifest>false</GenerateManifest>
@@ -107,7 +107,7 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <GenerateManifest>false</GenerateManifest>
-    <IntDir>$(ProjectDir)release\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)\release\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
