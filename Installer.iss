@@ -38,11 +38,11 @@ Name: "{group}\Explorer Enhancement Manager"; Filename: "{app}\{code:GetManagerE
 Name: "{commondesktop}\{cm:ProgramOnTheWeb,Windows Explorer Extension}"; Filename: "https://github.com/anpho/WindowsExplorerExtension"; Tasks: desktopicon
 
 [Run]
-Filename: "regsvr32.exe"; Parameters: "/s \"{app}\{code:GetDllName}\""; StatusMsg: "Registering Windows Explorer Extension..."
-Filename: "{app}\{code:GetManagerExeName}"; Description: "{cm:LaunchProgram,Explorer Enhancement Manager}"; Flags: nowait postinstall skipifsilent
+Filename: "{sys}\regsvr32.exe"; Parameters: "/s {app}\\{code:GetDllName}"; StatusMsg: "Registering Windows Explorer Extension..."
+Filename: "{app}\\{code:GetManagerExeName}"; Description: "{cm:LaunchProgram,Explorer Enhancement Manager}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "regsvr32.exe"; Parameters: "/s /u \"{app}\{code:GetDllName}\""; StatusMsg: "Unregistering Windows Explorer Extension..."
+Filename: "{sys}\regsvr32.exe"; Parameters: "/s /u {app}\\{code:GetDllName}"; StatusMsg: "Unregistering Windows Explorer Extension..."
 
 [Code]
 function GetDllName(Param: string): string;
