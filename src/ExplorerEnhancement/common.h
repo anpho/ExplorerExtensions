@@ -153,13 +153,17 @@ static DWORD RegGetDword(HKEY hKey, const std::wstring &subKey, const std::wstri
 {
     DWORD data{1};
     DWORD datasize = sizeof(data);
-    RETURN_IF_FAILED(::RegGetValue(
+    HRESULT hr = ::RegGetValue(
         hKey,
         subKey.c_str(),
         value.c_str(),
         RRF_RT_REG_DWORD,
         nullptr,
         &data,
-        &datasize));
+        &datasize);
+    if (FAILED(hr))
+    {
+        return 1; // 默认值为1，表示启用
+    }
     return data;
 }

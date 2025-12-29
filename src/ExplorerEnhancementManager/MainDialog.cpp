@@ -77,8 +77,18 @@ void CMainDialog::UpdateUI()
     CheckDlgButton(IDC_NEWFOLDER_CHECK, bNewFolderEnabled ? BST_CHECKED : BST_UNCHECKED);
 }
 
+extern BOOL ProcessCommandLine(LPCWSTR lpCmdLine, CRegistryHelper& registryHelper);
+
 void CMainDialog::ApplyChanges()
 {
+    CRegistryHelper registryHelper;
+
+    // 检查命令行参数
+    if (!ProcessCommandLine(L"/install", registryHelper))
+    {
+        ::CoUninitialize();
+    }
+
     // 获取用户选择的状态
     BOOL bBreakFolderEnabled = IsDlgButtonChecked(IDC_BREAKFOLDER_CHECK) == BST_CHECKED;
     BOOL bNewFolderEnabled = IsDlgButtonChecked(IDC_NEWFOLDER_CHECK) == BST_CHECKED;
