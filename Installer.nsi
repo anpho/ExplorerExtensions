@@ -26,6 +26,9 @@ UninstPage InstFiles
 
 ; 定义安装程序区域
 Section "Main Section" SEC01
+    ; 设置输出目录
+    SetOutPath $INSTDIR
+    
     ; 检测系统架构
     StrCmp $PROCESSOR_ARCHITECTURE "x86" arch_x86 arch_x64
     
