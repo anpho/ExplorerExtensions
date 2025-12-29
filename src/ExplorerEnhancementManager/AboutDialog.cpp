@@ -41,7 +41,7 @@ LRESULT CAboutDialog::OnBnClickedOk(WORD /*wNotifyCode*/, WORD /*wID*/, HWND hWn
     ::EnableWindow(hWndCtl, FALSE);
     
     // 使用默认浏览器打开GitHub链接
-    ShellExecute(NULL, L"open", L"https://github.com", NULL, NULL, SW_SHOWNORMAL);
+    ShellExecute(NULL, L"open", L"https://github.com/anpho", NULL, NULL, SW_SHOWNORMAL);
     
     // 重新启用按钮
     ::EnableWindow(hWndCtl, TRUE);
