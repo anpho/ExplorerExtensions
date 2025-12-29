@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+﻿﻿#include "pch.h"
 #include "AboutDialog.h"
 #include <shellapi.h>
 

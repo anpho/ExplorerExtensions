@@ -199,7 +199,37 @@ BEGIN
     LTEXT           "anpho's Explorer Extensions Manager (Personal Free Edition)",IDC_STATIC,46,18,235,10
     LTEXT           "For managing anpho's Explorer Extensions context menu extensions. Please purchase a license for non-personal use.",IDC_STATIC,15,41,260,20
     DEFPUSHBUTTON   "OK",IDOK,212,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
-    DEFPUSHBUTTON   "Buy Commercial Version",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
+    DEFPUSHBUTTON   "Purchase",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_MAIN_DIALOG, DIALOG
+    BEGIN
+    END
+
+    IDD_ABOUT_DIALOG, DIALOG
+    BEGIN
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_ABOUT_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0
 END
 
 
