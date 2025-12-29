@@ -10,6 +10,9 @@ OutFile "ExplorerExtensionSetup.exe"
 ; 定义安装程序图标（可选）
 ; Icon "icon.ico"
 
+; 明确指定不需要管理员权限
+RequestExecutionLevel user
+
 ; 定义安装目录
 InstallDir $LOCALAPPDATA\ExplorerEnhancement
 
