@@ -43,7 +43,7 @@ jobs:
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
     - name: Install NSIS
-      run: choco install nsis -y
+      uses: repolevedavaj/install-nsis@v1.1.0
 
     - name: Build Installer
       working-directory: ${{env.GITHUB_WORKSPACE}}
