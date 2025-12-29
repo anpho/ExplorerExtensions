@@ -23,7 +23,23 @@ Tired of folders in folders? This will break folder structure and move all files
 
 ## How to Install
 
-Go to ```Releases``` and download the file ExplorerExtension.dll, open some terminal, then use ```regsvr32 dllpath``` to register it.
+### Option 1: Using Installer (Recommended)
+Go to ```Releases``` and download the installer file `ExplorerExtensionSetup.exe`.
+1. Run the installer (no administrator privileges required)
+2. Follow the on-screen instructions
+3. Restart Windows Explorer or your computer
+
+### Option 2: Manual Installation
+Go to ```Releases``` and download the file ExplorerExtension.dll, open some terminal, then use:
+```bash
+# For 32-bit systems
+regsvr32 ExplorerEnhancement_x86.dll
+
+# For 64-bit systems  
+regsvr32 ExplorerEnhancement_x64.dll
+```
+
+Note: The manual installation method requires administrator privileges.
 
 
 ### Contact
