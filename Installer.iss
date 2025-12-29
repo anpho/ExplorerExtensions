@@ -11,7 +11,7 @@ AppUpdatesURL=https://github.com/anpho/WindowsExplorerExtension
 DefaultDirName={localappdata}\ExplorerEnhancement
 DefaultGroupName=ExplorerEnhancement
 OutputBaseFilename=ExplorerExtensionSetup
-Compression=lzma
+Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64
@@ -38,11 +38,11 @@ Name: "{group}\Explorer Enhancement Manager"; Filename: "{app}\{code:GetManagerE
 Name: "{commondesktop}\{cm:ProgramOnTheWeb,Windows Explorer Extension}"; Filename: "https://github.com/anpho/WindowsExplorerExtension"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{code:GetDllName}"; Parameters: "/regserver"; StatusMsg: "Registering Windows Explorer Extension..."
+Filename: "regsvr32.exe"; Parameters: "/s \"{app}\{code:GetDllName}\""; StatusMsg: "Registering Windows Explorer Extension..."
 Filename: "{app}\{code:GetManagerExeName}"; Description: "{cm:LaunchProgram,Explorer Enhancement Manager}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\{code:GetDllName}"; Parameters: "/unregserver"; StatusMsg: "Unregistering Windows Explorer Extension..."
+Filename: "regsvr32.exe"; Parameters: "/s /u \"{app}\{code:GetDllName}\""; StatusMsg: "Unregistering Windows Explorer Extension..."
 
 [Code]
 function GetDllName(Param: string): string;
