@@ -42,14 +42,16 @@ jobs:
       # Build 64-bit version
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
-    - name: Install Inno Setup and Build
-      uses:  callebstrom/inno-setup-cli-action@6.2.1
-      with:
-        file: Installer.iss
+    - name: Install NSIS
+      run: choco install nsis -y
+
+    - name: Build Installer
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: makensis Installer.nsi
 
     - name: Upload
       uses: actions/upload-artifact@v6.0.0
       with:
         name: WindowsExplorerExtensions_Installer
         path: |
-          ./Output/ExplorerExtensionSetup.exe
+          ./ExplorerExtensionSetup.exe
