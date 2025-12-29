@@ -30,11 +30,19 @@ Section "Main Section" SEC01
     StrCmp $PROCESSOR_ARCHITECTURE "x86" arch_x86 arch_x64
     
     arch_x86:
+        ; 先取消注册已存在的DLL（如果有）
+        IfFileExists "$INSTDIR\ExplorerEnhancement_x86.dll" 0 skip_unreg_x86
+            ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
+        skip_unreg_x86:
         File "src\build\ExplorerEnhancement_x86.dll"
         File "src\build\ExplorerEnhancementManager_x86.exe"
         Goto arch_end
     
     arch_x64:
+        ; 先取消注册已存在的DLL（如果有）
+        IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
+            ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
+        skip_unreg_x64:
         File "src\build\ExplorerEnhancement_x64.dll"
         File "src\build\ExplorerEnhancementManager_x64.exe"
     
@@ -44,11 +52,11 @@ Section "Main Section" SEC01
     StrCmp $PROCESSOR_ARCHITECTURE "x86" reg_x86 reg_x64
     
     reg_x86:
-        ExecWait '$SYSDIR\regsvr32.exe /s $InstallDir\ExplorerEnhancement_x86.dll'
+        ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x86.dll'
         Goto reg_end
     
     reg_x64:
-        ExecWait '$SYSDIR\regsvr32.exe /s $InstallDir\ExplorerEnhancement_x64.dll'
+        ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x64.dll'
     
     reg_end:
     
@@ -57,17 +65,17 @@ Section "Main Section" SEC01
     StrCmp $PROCESSOR_ARCHITECTURE "x86" shortcut_x86 shortcut_x64
     
     shortcut_x86:
-        CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk" "$InstallDir\ExplorerEnhancementManager_x86.exe"
+        CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
         Goto shortcut_end
     
     shortcut_x64:
-        CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk" "$InstallDir\ExplorerEnhancementManager_x64.exe"
+        CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
     
     shortcut_end:
-    CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Uninstall.lnk" "$InstallDir\uninstall.exe"
+    CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Uninstall.lnk" "$INSTDIR\uninstall.exe"
     
     ; 创建卸载程序
-    WriteUninstaller "$InstallDir\uninstall.exe"
+    WriteUninstaller "$INSTDIR\uninstall.exe"
 SectionEnd
 
 ; 卸载程序区域
@@ -76,15 +84,15 @@ Section "Uninstall"
     StrCmp $PROCESSOR_ARCHITECTURE "x86" unreg_x86 unreg_x64
     
     unreg_x86:
-        ExecWait '$SYSDIR\regsvr32.exe /s /u $InstallDir\ExplorerEnhancement_x86.dll'
-        Delete "$InstallDir\ExplorerEnhancement_x86.dll"
-        Delete "$InstallDir\ExplorerEnhancementManager_x86.exe"
+        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
+        Delete "$INSTDIR\ExplorerEnhancement_x86.dll"
+        Delete "$INSTDIR\ExplorerEnhancementManager_x86.exe"
         Goto unreg_end
     
     unreg_x64:
-        ExecWait '$SYSDIR\regsvr32.exe /s /u $InstallDir\ExplorerEnhancement_x64.dll'
-        Delete "$InstallDir\ExplorerEnhancement_x64.dll"
-        Delete "$InstallDir\ExplorerEnhancementManager_x64.exe"
+        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
+        Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
+        Delete "$INSTDIR\ExplorerEnhancementManager_x64.exe"
     
     unreg_end:
     
@@ -94,10 +102,10 @@ Section "Uninstall"
     RMDir "$SMPROGRAMS\ExplorerEnhancement"
     
     ; 删除卸载程序
-    Delete "$InstallDir\uninstall.exe"
+    Delete "$INSTDIR\uninstall.exe"
     
     ; 删除安装目录
-    RMDir "$InstallDir"
+    RMDir "$INSTDIR"
     
     ; 提示用户重启Windows Explorer
     MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
