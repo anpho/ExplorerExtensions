@@ -114,7 +114,20 @@ Section "Uninstall"
     MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
 SectionEnd
 
-; 安装完成后提示用户重启Windows Explorer
+; 安装完成后提示用户重启Windows Explorer并启动ExplorerEnhancementManager应用
 Function .onInstSuccess
-    ; MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
+    ; 根据系统架构启动相应的ExplorerEnhancementManager应用
+    StrCmp $PROCESSOR_ARCHITECTURE "x86" start_x86 start_x64
+    
+    start_x86:
+        ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+        Goto start_end
+    
+    start_x64:
+        ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+    
+    start_end:
+    
+    ; 提示用户已安装完成
+    ;MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nThe Explorer Enhancement Manager has been started.\r\nPlease restart Windows Explorer or your computer if the context menu items do not appear."
 FunctionEnd
