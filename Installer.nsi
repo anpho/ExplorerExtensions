@@ -116,5 +116,5 @@ SectionEnd
 
 ; 安装完成后提示用户重启Windows Explorer
 Function .onInstSuccess
-    MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
+    ; MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
 FunctionEnd
