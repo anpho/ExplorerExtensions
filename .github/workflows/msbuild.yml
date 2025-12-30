@@ -55,6 +55,6 @@ jobs:
         name: WindowsExplorerExtensions_Installer
         path: |
           ./ExplorerExtensionSetup.exe
-          ./ExplorerEnhancement_x86.dll
-          ./ExplorerEnhancement_x64.dll
+          ./build/ExplorerEnhancement_x86.dll
+          ./build/ExplorerEnhancement_x64.dll
 
