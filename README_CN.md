@@ -20,6 +20,7 @@ Windows资源管理器扩展，已在Windows 10和Windows 11上测试。
 
 
 
+
 ## 安装方法
 
 ### 选项1：使用安装程序（推荐）
@@ -45,4 +46,12 @@ regsvr32 ExplorerEnhancement_x64.dll
 
 ### 联系方式
 
+support@anpho.cn
+
 [Twitter](https://x.com/anpho)
+
+## 许可证
+
+本项目采用专有软件许可证。个人非商业使用是免费的，但**任何形式的商业使用都需要付费许可证**。如需商业许可咨询，请联系项目所有者。
+
+有关专有许可证的完整详细信息，请参阅[LICENSE](LICENSE)文件；有关商业许可条款，请参阅[LICENSE_COMMERCIAL](LICENSE_COMMERCIAL.md)文件。

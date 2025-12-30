@@ -45,4 +45,12 @@ Note: The manual installation method doesn't require administrator privileges ei
 
 ### Contact
 
+support@anpho.cn
+
 [Twitter](https://x.com/anpho)
+
+## License
+
+This project is licensed under a proprietary software license. Personal non-commercial use is free, but **any form of commercial use requires a paid license**. For commercial licensing inquiries, please contact the project owner.
+
+See the [LICENSE](LICENSE) file for full details of the proprietary license, and [LICENSE_COMMERCIAL](LICENSE_COMMERCIAL.md) for commercial licensing terms.
