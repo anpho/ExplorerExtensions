@@ -11,12 +11,16 @@ Windows资源管理器扩展，已在Windows 10和Windows 11上测试。
 **使用方法**
 > 选择一些文件/文件夹，右键单击，选择 ```新建文件夹+```。
 
+![](./doc/nf-cn.jpg)
+
 ### 打破文件夹扩展
 
 厌倦了文件夹套文件夹？此功能将打破文件夹结构并将所有文件移动到外部。
 
 **使用方法**
 > 选择一些文件夹，右键单击，选择 ```摊开文件夹```。
+
+![](./doc/br-cn.jpg)
 
 
 
@@ -45,4 +49,12 @@ regsvr32 ExplorerEnhancement_x64.dll
 
 ### 联系方式
 
+support@anpho.cn
+
 [Twitter](https://x.com/anpho)
+
+## 许可证
+
+本项目采用专有软件许可证。个人非商业使用是免费的，但**任何形式的商业使用都需要付费许可证**。如需商业许可咨询，请联系项目所有者。
+
+有关专有许可证的完整详细信息，请参阅[LICENSE](LICENSE)文件；有关商业许可条款，请参阅[LICENSE_COMMERCIAL](LICENSE_COMMERCIAL.md)文件。
