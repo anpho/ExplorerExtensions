@@ -16,7 +16,7 @@ HKCR
 		{
 			NoRemove ContextMenuHandlers
 			{
-				ForceRemove NewFolderExtenstion = s '{c36a65af-0a1e-4e09-9729-6da3e4e4461a}'
+				ForceRemove NewFolderExtension = s '{c36a65af-0a1e-4e09-9729-6da3e4e4461a}'
 			}
 		}
 	}
@@ -26,7 +26,7 @@ HKCR
 		{
 			NoRemove ContextMenuHandlers
 			{
-				ForceRemove NewFolderExtenstion = s '{c36a65af-0a1e-4e09-9729-6da3e4e4461a}'
+				ForceRemove NewFolderExtension = s '{c36a65af-0a1e-4e09-9729-6da3e4e4461a}'
 			}
 		}
 	}

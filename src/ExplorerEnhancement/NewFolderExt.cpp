@@ -635,7 +635,7 @@ HRESULT __stdcall CNewFolderExt::GetCanonicalName(GUID* pguidCommandName)
 
 HRESULT __stdcall CNewFolderExt::GetState(IShellItemArray* psiItemArray, BOOL fOkToBeSlow, EXPCMDSTATE* pCmdState)
 {
-	// TODO Enable or Disable
+	// Check registry setting to determine if this command should be enabled
 	UNREFERENCED_PARAMETER(psiItemArray);
 	DWORD enabled = RegGetDword(HKEY_CURRENT_USER, M_REG_BASEKEY, M_REG_ENABLE_NEWFOLDER);
 	if (!enabled)
