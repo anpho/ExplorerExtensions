@@ -137,17 +137,61 @@ HRESULT __stdcall CBreakFolderExt::InvokeCommand(CMINVOKECOMMANDINFO *pici)
 }
 
 /**
- * @brief 获取命令的字符串表示（未实现）
+ * @brief 获取命令的字符串表示
  * @param idCmd 命令ID
  * @param uType 字符串类型
  * @param pReserved 保留参数
  * @param pszName 字符串缓冲区
  * @param cchMax 缓冲区大小
- * @return E_NOTIMPL 未实现
+ * @return S_OK 操作成功，否则返回错误码
  */
 HRESULT __stdcall CBreakFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UINT *pReserved, CHAR *pszName, UINT cchMax)
 {
-	return E_NOTIMPL;
+	// Only handle command help text (verb help)
+	if (uType == GCS_HELPTEXTA)
+	{
+		// Provide help text for the command
+		const char* helpText = "Break folders and move files to parent folder";
+		if (pszName && cchMax > 0)
+		{
+			strncpy_s(pszName, cchMax, helpText, _TRUNCATE);
+			return S_OK;
+		}
+	}
+	else if (uType == GCS_HELPTEXTW)
+	{
+		// Provide help text for the command (wide character version)
+		const wchar_t* helpText = L"Break folders and move files to parent folder";
+		if (pszName && cchMax > 0)
+		{
+			// Convert wide string to char string for the output buffer
+			wcstombs_s(nullptr, pszName, cchMax, helpText, _TRUNCATE);
+			return S_OK;
+		}
+	}
+	else if (uType == GCS_VERBA)
+	{
+		// Provide the verb string (command name)
+		const char* verb = "BreakFoldersPlus";
+		if (pszName && cchMax > 0)
+		{
+			strncpy_s(pszName, cchMax, verb, _TRUNCATE);
+			return S_OK;
+		}
+	}
+	else if (uType == GCS_VERBW)
+	{
+		// Provide the verb string (wide character version)
+		const wchar_t* verb = L"BreakFoldersPlus";
+		if (pszName && cchMax > 0)
+		{
+			// Convert wide string to char string for the output buffer
+			wcstombs_s(nullptr, pszName, cchMax, verb, _TRUNCATE);
+			return S_OK;
+		}
+	}
+
+	return S_OK; // Return S_OK when not handling specific types
 }
 
 /**

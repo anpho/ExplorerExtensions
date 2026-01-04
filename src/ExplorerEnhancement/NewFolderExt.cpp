@@ -599,7 +599,51 @@ ATL::CString CNewFolderExt::combine_path(ATL::CString folder_name, ATL::CString 
 
 HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UINT* pReserved, CHAR* pszName, UINT cchMax)
 {
-	return E_NOTIMPL;
+	// Only handle command help text (verb help)
+	if (uType == GCS_HELPTEXTA)
+	{
+		// Provide help text for the command
+		const char* helpText = "Create a new folder with selected items";
+		if (pszName && cchMax > 0)
+		{
+			strncpy_s(pszName, cchMax, helpText, _TRUNCATE);
+			return S_OK;
+		}
+	}
+	else if (uType == GCS_HELPTEXTW)
+	{
+		// Provide help text for the command (wide character version)
+		const wchar_t* helpText = L"Create a new folder with selected items";
+		if (pszName && cchMax > 0)
+		{
+			// Convert wide string to char string for the output buffer
+			wcstombs_s(nullptr, pszName, cchMax, helpText, _TRUNCATE);
+			return S_OK;
+		}
+	}
+	else if (uType == GCS_VERBA)
+	{
+		// Provide the verb string (command name)
+		const char* verb = "NewFolderPlus";
+		if (pszName && cchMax > 0)
+		{
+			strncpy_s(pszName, cchMax, verb, _TRUNCATE);
+			return S_OK;
+		}
+	}
+	else if (uType == GCS_VERBW)
+	{
+		// Provide the verb string (wide character version)
+		const wchar_t* verb = L"NewFolderPlus";
+		if (pszName && cchMax > 0)
+		{
+			// Convert wide string to char string for the output buffer
+			wcstombs_s(nullptr, pszName, cchMax, verb, _TRUNCATE);
+			return S_OK;
+		}
+	}
+
+	return S_OK; // Return S_OK when not handling specific types
 }
 
 HRESULT __stdcall CNewFolderExt::GetTitle(IShellItemArray* psiItemArray, LPWSTR* ppszName)
@@ -624,7 +668,26 @@ HRESULT __stdcall CNewFolderExt::GetIcon(IShellItemArray* psiItemArray, LPWSTR* 
 
 HRESULT __stdcall CNewFolderExt::GetToolTip(IShellItemArray* psiItemArray, LPWSTR* ppszInfotip)
 {
-	return E_NOTIMPL;
+	// Provide tooltip information for the command
+	*ppszInfotip = nullptr;
+
+	// Create tooltip text
+	const wchar_t* tooltipText = L"Create a new folder and move selected items into it";
+
+	// Allocate memory for the tooltip string using CoTaskMemAlloc
+	LPWSTR tooltip = static_cast<LPWSTR>(CoTaskMemAlloc((wcslen(tooltipText) + 1) * sizeof(wchar_t)));
+	if (!tooltip)
+	{
+		return E_OUTOFMEMORY;
+	}
+
+	// Copy the tooltip text
+	wcscpy_s(tooltip, wcslen(tooltipText) + 1, tooltipText);
+
+	// Assign the tooltip to the output parameter
+	*ppszInfotip = tooltip;
+
+	return S_OK;
 }
 
 HRESULT __stdcall CNewFolderExt::GetCanonicalName(GUID* pguidCommandName)
@@ -663,6 +726,7 @@ HRESULT __stdcall CNewFolderExt::GetFlags(EXPCMDFLAGS* pFlags)
 
 HRESULT __stdcall CNewFolderExt::EnumSubCommands(IEnumExplorerCommand** ppEnum)
 {
+	// This command doesn't have subcommands, so return a null enumerator
 	*ppEnum = nullptr;
-	return E_NOTIMPL;
+	return S_OK;  // S_OK with a null enumerator indicates no subcommands
 }
