@@ -21,7 +21,7 @@ using namespace ATL;
 // CNewFolderExt 类
 // 功能：实现Windows资源管理器的上下文菜单扩展，用于创建新文件夹并将选中项目移动到该文件夹
 // 接口：实现了IShellExtInit（初始化）、IContextMenu（上下文菜单）和IExplorerCommand（Explorer命令）等接口
-class ATL_NO_VTABLE CNewFolderExt : public CComObjectRootEx<CComMultiThreadModel>,
+class ATL_NO_VTABLE CNewFolderExt : public CComObjectRootEx<CComSingleThreadModel>,
 									public CComCoClass<CNewFolderExt, &CLSID_NewFolderExt>,
 									public INewFolderExt,
 									public IShellExtInit,	// 用于扩展初始化的接口

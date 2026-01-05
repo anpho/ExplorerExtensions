@@ -138,25 +138,12 @@ HRESULT __stdcall CNewFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDataO
 			CoTaskMemFree(filename_buffer);
 		}
 
-		// 检查选中的项目，确保至少有一个项目可以被移动
-		// 如果只选中了一个项目，且该项目是文件夹，则不显示菜单项（因为移动文件夹到新文件夹没有意义）
+		// 如果只选中了一个文件夹，不显示菜单项；只选中一个文件则可以显示
 		if (selected_files.size() == 1)
 		{
 			ATL::CPath onePath(selected_files.at(0));
 			if (onePath.IsDirectory())
 			{
-				// 对于单个文件夹的情况，我们仍然可以创建新文件夹并移动它
-				// 这种情况在某些场景下可能有用，比如重命名文件夹
-				// 但根据原始逻辑，我们保持不显示菜单项
-				return E_INVALIDARG;
-			}
-		}
-		// 验证选中的文件路径是否有效
-		for (const auto& filePath : selected_files)
-		{
-			if (filePath.IsEmpty())
-			{
-				// 如果存在空路径，返回错误
 				return E_INVALIDARG;
 			}
 		}
@@ -630,13 +617,7 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 		if (pszName && cchMax > 0)
 		{
 			// Convert wide string to char string for the output buffer
-			// Calculate required size to prevent buffer overflow
-			size_t converted = 0;
-			errno_t result = wcstombs_s(&converted, pszName, cchMax, helpText, _TRUNCATE);
-			if (result != 0)
-			{
-				return E_FAIL;
-			}
+			wcstombs_s(nullptr, pszName, cchMax, helpText, _TRUNCATE);
 			return S_OK;
 		}
 	}
@@ -657,13 +638,7 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 		if (pszName && cchMax > 0)
 		{
 			// Convert wide string to char string for the output buffer
-			// Calculate required size to prevent buffer overflow
-			size_t converted = 0;
-			errno_t result = wcstombs_s(&converted, pszName, cchMax, verb, _TRUNCATE);
-			if (result != 0)
-			{
-				return E_FAIL;
-			}
+			wcstombs_s(nullptr, pszName, cchMax, verb, _TRUNCATE);
 			return S_OK;
 		}
 	}

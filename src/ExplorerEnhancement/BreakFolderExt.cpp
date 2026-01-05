@@ -165,13 +165,7 @@ HRESULT __stdcall CBreakFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, 
 		if (pszName && cchMax > 0)
 		{
 			// Convert wide string to char string for the output buffer
-			// Calculate required size to prevent buffer overflow
-			size_t converted = 0;
-			errno_t result = wcstombs_s(&converted, pszName, cchMax, helpText, _TRUNCATE);
-			if (result != 0)
-			{
-				return E_FAIL;
-			}
+			wcstombs_s(nullptr, pszName, cchMax, helpText, _TRUNCATE);
 			return S_OK;
 		}
 	}
@@ -192,13 +186,7 @@ HRESULT __stdcall CBreakFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, 
 		if (pszName && cchMax > 0)
 		{
 			// Convert wide string to char string for the output buffer
-			// Calculate required size to prevent buffer overflow
-			size_t converted = 0;
-			errno_t result = wcstombs_s(&converted, pszName, cchMax, verb, _TRUNCATE);
-			if (result != 0)
-			{
-				return E_FAIL;
-			}
+			wcstombs_s(nullptr, pszName, cchMax, verb, _TRUNCATE);
 			return S_OK;
 		}
 	}
@@ -246,35 +234,22 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 			CComPtr<IShellItem> pFolder;
 			hr = SHCreateItemFromParsingName(folderPath.c_str(), NULL, IID_PPV_ARGS(&pFolder));
 			if (FAILED(hr))
-			{
-				// 记录错误并继续处理下一个文件夹
 				continue;
-			}
 
 			// 使用IEnumShellItems递归遍历文件夹内容
 			CComPtr<IEnumShellItems> pEnum;
 			hr = pFolder->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pEnum));
 			if (FAILED(hr))
-			{
-				// 记录错误并继续处理下一个文件夹
-				continue;
-			}
+				continue; 
 
 			CComPtr<IShellItem> pItem;
-			while (SUCCEEDED(pEnum->Next(1, &pItem, NULL)))
+			while (pEnum->Next(1, &pItem, NULL) == S_OK)
 			{
-				if (!pItem)
-				{
-					// 如果pItem为空，跳过该项目
-					continue;
-				}
-
 				// 检查当前项目是否为文件夹
 				SFGAOF sfgaoFlags = SFGAO_FOLDER;
 				hr = pItem->GetAttributes(SFGAO_FOLDER, &sfgaoFlags);
 				if (FAILED(hr))
 				{
-					// 获取属性失败，尝试继续处理下一个项目
 					pItem = NULL;
 					continue;
 				}
@@ -286,26 +261,18 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 					hr = pItem->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pSubEnum));
 					if (FAILED(hr))
 					{
-						// 绑定到子枚举器失败，继续处理下一个项目
 						pItem = NULL;
 						continue;
 					}
 
 					CComPtr<IShellItem> pSubItem;
-					while (SUCCEEDED(pSubEnum->Next(1, &pSubItem, NULL)))
+					while (pSubEnum->Next(1, &pSubItem, NULL) == S_OK)
 					{
-						if (!pSubItem)
-						{
-							// 如果pSubItem为空，跳过该项目
-							continue;
-						}
-
 						// 获取子项目路径
 						LPWSTR subItemPath = NULL;
 						hr = pSubItem->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &subItemPath);
 						if (FAILED(hr))
 						{
-							// 获取路径失败，继续处理下一个子项目
 							pSubItem = NULL;
 							continue;
 						}
@@ -315,26 +282,17 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 						hr = pSubItem->GetDisplayName(SIGDN_FILESYSPATH, &subItemName);
 						if (FAILED(hr))
 						{
-							// 获取文件名失败，释放已分配的资源并继续
 							CoTaskMemFree(subItemPath);
 							pSubItem = NULL;
 							continue;
 						}
 
 						// 提取文件名
+						ATL::CPath subItemPathObj(subItemName);
 						LPWSTR fileName = ::PathFindFileNameW(subItemName);
-						if (fileName == NULL || wcslen(fileName) == 0)
-						{
-							// 如果无法提取文件名，使用原路径作为文件名
-							fileName = subItemName;
-						}
 
 						// 将文件移动到目标文件夹
 						hr = pfo->MoveItem(pSubItem, pDstDir, fileName, NULL);
-						if (FAILED(hr))
-						{
-							// 移动失败，记录错误但继续处理
-						}
 
 						// 释放资源
 						CoTaskMemFree(subItemPath);
@@ -350,25 +308,16 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &itemName);
 					if (FAILED(hr))
 					{
-						// 获取文件名失败，继续处理下一个项目
 						pItem = NULL;
 						continue;
 					}
 
 					// 提取文件名
+					ATL::CPath itemPathObj(itemName);
 					LPWSTR fileName = ::PathFindFileNameW(itemName);
-					if (fileName == NULL || wcslen(fileName) == 0)
-					{
-						// 如果无法提取文件名，使用原路径作为文件名
-						fileName = itemName;
-					}
 
 					// 将文件移动到目标文件夹
 					hr = pfo->MoveItem(pItem, pDstDir, fileName, NULL);
-					if (FAILED(hr))
-					{
-						// 移动失败，记录错误但继续处理
-					}
 
 					// 释放资源
 					CoTaskMemFree(itemName);
