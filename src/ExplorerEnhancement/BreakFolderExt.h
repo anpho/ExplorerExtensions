@@ -119,7 +119,10 @@ public:
 private:
 	ATL::CString m_contextMenuName;				 // 上下文菜单名称
 	std::vector<std::wstring> m_selectedFolders; // 存储选中的文件夹路径，支持UNC路径
+	bool m_shiftKeyDown = false;                 // 记录Shift键是否按下
 	HRESULT OnBreakFoldersTriggered();			 // 处理"打破文件夹"操作的函数
+	void DeleteEmptyFolders();                   // 删除空文件夹的函数
+	bool IsFolderEmpty(LPCWSTR folderPath);      // 检查文件夹是否为空
 	HICON m_hIcon = nullptr;					 // 菜单项图标句柄
 	HBITMAP m_hBitmap = nullptr;				 // 菜单项位图句柄
 	void loadIcon();							 // 加载图标的函数

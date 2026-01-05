@@ -5,6 +5,19 @@
 #include "BreakFolderExt.h"
 #include "common.h"
 #include <atlpath.h> // 用于 ATL::CPath 类
+#include <ShlObj_core.h> // 用于 SHCONTF constants
+
+// 定义枚举项标志的字符串常量
+static const OLECHAR STR_ENUM_ITEMS_FLAGS[] = L"EnumItemsFlags";
+
+// 确保所需的常量定义存在
+#ifndef SHCONTF_INCLUDEHIDDEN
+#define SHCONTF_INCLUDEHIDDEN 0x00000080
+#endif
+
+#ifndef SHCONTF_INCLUDESUPERHIDDEN
+#define SHCONTF_INCLUDESUPERHIDDEN 0x00000100
+#endif
 
 // CBreakFolderExt 类实现
 
@@ -128,6 +141,8 @@ HRESULT __stdcall CBreakFolderExt::InvokeCommand(CMINVOKECOMMANDINFO *pici)
 {
 	if ((IS_INTRESOURCE(pici->lpVerb)) && (LOWORD(pici->lpVerb) == 0))
 	{
+		// 检查Shift键是否按下
+		m_shiftKeyDown = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 		return OnBreakFoldersTriggered();
 	}
 	else
@@ -236,29 +251,72 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 			if (FAILED(hr))
 				continue;
 
-			// 使用IEnumShellItems递归遍历文件夹内容
+			// 使用IEnumShellItems递归遍历文件夹内容，包括隐藏和系统文件
+			CComPtr<IBindCtx> pBindCtx;
+			hr = CreateBindCtx(0, &pBindCtx);
+			if (SUCCEEDED(hr))
+			{
+				// 设置枚举标志以包含隐藏和系统文件
+				CComVariant varFlags;
+				varFlags.vt = VT_UINT;
+				varFlags.ulVal = SHCONTF_FOLDERS | SHCONTF_NONFOLDERS | SHCONTF_INCLUDEHIDDEN | SHCONTF_INCLUDESUPERHIDDEN;
+				hr = pBindCtx->RegisterObjectParam(const_cast<LPOLESTR>(STR_ENUM_ITEMS_FLAGS), &varFlags);
+			}
+
 			CComPtr<IEnumShellItems> pEnum;
-			hr = pFolder->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pEnum));
+			if (SUCCEEDED(hr))
+			{
+				hr = pFolder->BindToHandler(pBindCtx, BHID_EnumItems, IID_PPV_ARGS(&pEnum));
+			}
+			else
+			{
+				// 如果设置枚举标志失败，尝试使用默认方式
+				hr = pFolder->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pEnum));
+			}
+
 			if (FAILED(hr))
-				continue; 
+				continue;
 
 			CComPtr<IShellItem> pItem;
 			while (pEnum->Next(1, &pItem, NULL) == S_OK)
 			{
-				// 检查当前项目是否为文件夹
-				SFGAOF sfgaoFlags = SFGAO_FOLDER;
-				hr = pItem->GetAttributes(SFGAO_FOLDER, &sfgaoFlags);
+				// 检查当前项目是否为文件夹，同时检查隐藏和系统属性
+				SFGAOF sfgaoFlags = SFGAO_FOLDER | SFGAO_HIDDEN | SFGAO_SYSTEM;
+				hr = pItem->GetAttributes(SFGAO_FOLDER | SFGAO_HIDDEN | SFGAO_SYSTEM, &sfgaoFlags);
 				if (FAILED(hr))
 				{
 					pItem = NULL;
 					continue;
 				}
 
-				if (sfgaoFlags & SFGAO_FOLDER)
+				// 检查是否为文件夹
+				BOOL isFolder = (sfgaoFlags & SFGAO_FOLDER) != 0;
+
+				if (isFolder)
 				{
 					// 是文件夹，递归处理
+					CComPtr<IBindCtx> pSubBindCtx;
+					hr = CreateBindCtx(0, &pSubBindCtx);
+					if (SUCCEEDED(hr))
+					{
+						// 设置枚举标志以包含隐藏和系统文件
+						CComVariant varFlags;
+						varFlags.vt = VT_UINT;
+						varFlags.ulVal = SHCONTF_FOLDERS | SHCONTF_NONFOLDERS | SHCONTF_INCLUDEHIDDEN | SHCONTF_INCLUDESUPERHIDDEN;
+						hr = pSubBindCtx->RegisterObjectParam(const_cast<LPOLESTR>(STR_ENUM_ITEMS_FLAGS), &varFlags);
+					}
+
 					CComPtr<IEnumShellItems> pSubEnum;
-					hr = pItem->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pSubEnum));
+					if (SUCCEEDED(hr))
+					{
+						hr = pItem->BindToHandler(pSubBindCtx, BHID_EnumItems, IID_PPV_ARGS(&pSubEnum));
+					}
+					else
+					{
+						// 如果设置枚举标志失败，尝试使用默认方式
+						hr = pItem->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pSubEnum));
+					}
+
 					if (FAILED(hr))
 					{
 						pItem = NULL;
@@ -331,6 +389,13 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 		hr = pfo->PerformOperations();
 		// 通知Shell刷新所有事件
 		SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
+
+		// 如果Shift键按下，则删除空的文件夹
+		if (SUCCEEDED(hr) && m_shiftKeyDown)
+		{
+			DeleteEmptyFolders();
+		}
+
 		return S_OK;
 	}
 	else
@@ -358,4 +423,80 @@ void CBreakFolderExt::loadIcon()
 	);
 	// 将图标转换为位图，用于菜单项
 	m_hBitmap = IconToBitmap(m_hIcon);
+}
+
+/**
+ * @brief 删除空的文件夹
+ * 当Shift键按下时，在移动文件后删除空的原始文件夹
+ */
+void CBreakFolderExt::DeleteEmptyFolders()
+{
+	HRESULT hr;
+	CComPtr<IFileOperation> pfo;
+	if (SUCCEEDED(CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo))))
+	{
+		HWND hwnd = GetActiveWindow(); // 获取活动窗口句柄
+		pfo->SetOwnerWindow(hwnd);	   // 设置文件操作的所有者窗口
+		// 设置文件操作标志：允许撤销、简单进度、不确认删除
+		pfo->SetOperationFlags(FOF_ALLOWUNDO | FOF_SIMPLEPROGRESS | FOF_NOCONFIRMATION);
+
+		// 遍历所有选中的文件夹，检查是否为空并删除
+		for (const auto &folderPath : m_selectedFolders)
+		{
+			// 检查文件夹是否为空
+			if (IsFolderEmpty(folderPath.c_str()))
+			{
+				// 创建文件夹的ShellItem
+				CComPtr<IShellItem> pFolderItem;
+				hr = SHCreateItemFromParsingName(folderPath.c_str(), NULL, IID_PPV_ARGS(&pFolderItem));
+				if (SUCCEEDED(hr))
+				{
+					// 删除空文件夹
+					hr = pfo->DeleteItem(pFolderItem, NULL);
+				}
+			}
+		}
+
+		// 执行删除操作
+		pfo->PerformOperations();
+		// 通知Shell刷新所有事件
+		SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
+	}
+}
+
+/**
+ * @brief 检查文件夹是否为空
+ * @param folderPath 文件夹路径
+ * @return true 如果文件夹为空或不存在，false 如果文件夹包含文件或子文件夹
+ */
+bool CBreakFolderExt::IsFolderEmpty(LPCWSTR folderPath)
+{
+	WIN32_FIND_DATAW findData;
+	std::wstring searchPath = folderPath;
+	searchPath += L"\\*";
+
+	HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
+	if (hFind == INVALID_HANDLE_VALUE)
+	{
+		// 文件夹不存在或无法访问
+		return true;
+	}
+
+	BOOL hasItems = FALSE;
+	BOOL result = TRUE;
+
+	// 查找文件夹中的项目
+	do
+	{
+		// 跳过 "." 和 ".." 目录
+		if (wcscmp(findData.cFileName, L".") != 0 && wcscmp(findData.cFileName, L"..") != 0)
+		{
+			hasItems = TRUE;
+			break; // 发现项目，文件夹不为空
+		}
+	} while (FindNextFileW(hFind, &findData));
+
+	FindClose(hFind);
+
+	return !hasItems; // 如果没有找到项目（除了.和..），则文件夹为空
 }
