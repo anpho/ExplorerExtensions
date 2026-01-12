@@ -81,7 +81,7 @@ BEGIN
     LTEXT           "anpho's Explorer Extensions 管理器（个人免费版）",IDC_STATIC,46,18,235,10
     LTEXT           "用于管理 anpho's Explorer Extensions 上下文菜单扩展，非个人使用请购买授权。",IDC_STATIC,15,41,260,20
     DEFPUSHBUTTON   "确定",IDOK,212,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
-    DEFPUSHBUTTON   "购买商业版",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
+    DEFPUSHBUTTON   "购买商业版",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | NOT WS_VISIBLE | WS_GROUP
     LTEXT           "命令行参数：\n/install 注册DLL（默认）\n/uninstall 卸载 DLL",IDC_STATIC,15,66,252,37
 END
 
@@ -200,7 +200,7 @@ BEGIN
     LTEXT           "anpho's Explorer Extensions Manager (Personal Free Edition)",IDC_STATIC,46,18,235,10
     LTEXT           "For managing anpho's Explorer Extensions context menu extensions. Please purchase a license for non-personal use.",IDC_STATIC,15,41,260,20
     DEFPUSHBUTTON   "OK",IDOK,212,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
-    DEFPUSHBUTTON   "Purchase",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
+    PUSHBUTTON      "Purchase",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | NOT WS_VISIBLE | WS_GROUP
     LTEXT           "CommandLine Args：\n/install Register DLL(Default)\n/uninstall unregister DLL",IDC_STATIC,15,66,252,37
 END
 
