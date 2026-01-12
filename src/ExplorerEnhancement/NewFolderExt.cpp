@@ -273,39 +273,70 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 {
 	HRESULT hr = E_FAIL;
 
+	// 检查输入参数
+	if (selected_files.empty()) {
+		return E_INVALIDARG; // 没有选中的文件
+	}
+
 	ATL::CString target_path;
 	ATL::CString common_part = find_common_prefix(selected_files, &target_path);
 	{
 		// 如果没有共同前导子串，那么以第一个文件的文件名为目录名
 		if (common_part.Trim().GetLength() == 0)
 		{
+			if (selected_files.empty()) {
+				return E_UNEXPECTED; // 没有文件可供处理
+			}
 			common_part = extract_filename_without_ext(selected_files.at(0));
 			/*srand(timeGetTime());
 			common_part.Append(L"-");
 			common_part.Append(std::to_wstring(rand() * 7 % 100).c_str());*/
 		}
 	}
-	RETURN_IF_FAILED(CoInitialize(NULL));
+
+	// 初始化COM
+	hr = CoInitialize(NULL);
+	if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) {
+		return hr; // 如果不是因为已经初始化而失败，则返回错误
+	}
 
 	CComPtr<IFileOperation> pfo;
-	RETURN_IF_FAILED(CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo)));
+	hr = CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo));
+	if (FAILED(hr)) {
+		CoUninitialize();
+		return hr;
+	}
 
 	// 此处似乎不应该使用pici->hwnd，待考
 	HWND hwnd = pici ? pici->hwnd : GetActiveWindow();
-	pfo->SetOwnerWindow(hwnd);
+	hr = pfo->SetOwnerWindow(hwnd);
+	if (FAILED(hr)) {
+		CoUninitialize();
+		return hr;
+	}
 
 	// 设置一下Pfo的标志位，此处不设置也可
-	pfo->SetOperationFlags(FOF_ALLOWUNDO | FOF_SIMPLEPROGRESS | FOF_NOCONFIRMMKDIR);
+	hr = pfo->SetOperationFlags(FOF_ALLOWUNDO | FOF_SIMPLEPROGRESS | FOF_NOCONFIRMMKDIR);
+	if (FAILED(hr)) {
+		CoUninitialize();
+		return hr;
+	}
 
 	// 要生成的文件夹路径
 	CComPtr<IShellItem> pDstFolder;
 	ATL::CString path_of_the_new_folder = combine_path(target_path, common_part);
 
+	// 验证路径有效性
+	if (path_of_the_new_folder.IsEmpty()) {
+		CoUninitialize();
+		return E_INVALIDARG;
+	}
+
 	if (!PathIsDirectoryW(path_of_the_new_folder.GetString()))
 	{
 		// 如果目标文件夹不存在的话，就创建一个
 		//  使用CreateDirectoryW支持UNC路径
-		bool rs = CreateDirectoryW(path_of_the_new_folder.GetString(), NULL);
+		BOOL rs = CreateDirectoryW(path_of_the_new_folder.GetString(), NULL);
 		if (!rs)
 		{
 			DWORD error = GetLastError();
@@ -316,6 +347,7 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 			}
 			if (!rs)
 			{
+				CoUninitialize();
 				return HRESULT_FROM_WIN32(GetLastError());
 			}
 		}
@@ -324,7 +356,11 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 	}
 
 	// 把目标文件夹创建为IShellItem，给pfo使用
-	RETURN_IF_FAILED(SHCreateItemFromParsingName(path_of_the_new_folder.GetString(), NULL, IID_PPV_ARGS(&pDstFolder)));
+	hr = SHCreateItemFromParsingName(path_of_the_new_folder.GetString(), NULL, IID_PPV_ARGS(&pDstFolder));
+	if (FAILED(hr)) {
+		CoUninitialize();
+		return hr;
+	}
 
 	if (!psiItemArray)
 	{
@@ -339,23 +375,40 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 			hr = SHCreateItemFromParsingName((*iter).GetString(), NULL, IID_PPV_ARGS(&pitem));
 			if (SUCCEEDED(hr))
 			{
-				pfo->MoveItem(pitem, pDstFolder, extract_filename((*iter)).GetString(), NULL);
-				/*
-				 * 2022/3/18 对于每一个移动的文件，向shell发送通知
-				 */
-				SHChangeNotify(SHCNE_DELETE, SHCNF_IDLIST, pitem, NULL);
+				hr = pfo->MoveItem(pitem, pDstFolder, extract_filename((*iter)).GetString(), NULL);
+				if (SUCCEEDED(hr)) {
+					/*
+					 * 2022/3/18 对于每一个移动的文件，向shell发送通知
+					 */
+					SHChangeNotify(SHCNE_DELETE, SHCNF_IDLIST, pitem, NULL);
+				}
 			}
 		}
 	}
 	else
 	{
-		pfo->MoveItems(psiItemArray, pDstFolder);
+		hr = pfo->MoveItems(psiItemArray, pDstFolder);
+		if (FAILED(hr)) {
+			CoUninitialize();
+			return hr;
+		}
 	}
+
+	// 通知所有事件
 	SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
+
 	// 执行pfo操作
 	hr = pfo->PerformOperations();
+
+	// 无论操作成功与否，都要清理COM
 	CoUninitialize();
-	selectItem(&path_of_the_new_folder);
+
+	// 异步调用selectItem，不等待其完成
+	HANDLE hThread = (HANDLE)_beginthreadex(NULL, 0, selectItem, &path_of_the_new_folder, 0, NULL);
+	if (hThread) {
+		CloseHandle(hThread); // 不需要等待线程完成，只是启动它
+	}
+
 	return hr;
 }
 /// <summary>
@@ -365,87 +418,127 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 /// <returns></returns>
 unsigned __stdcall selectItem(void* pArguments)
 {
+	HRESULT hr = CoInitialize(NULL);
+	if (FAILED(hr)) {
+		return static_cast<unsigned>(hr);
+	}
 
-	RETURN_IF_FAILED(CoInitialize(NULL));
 	ATL::CString* folder_to_select = static_cast<ATL::CString*>(pArguments);
+	if (!folder_to_select) {
+		CoUninitialize();
+		return E_POINTER; // 参数为空指针
+	}
 
 	CComPtr<IShellWindows> shellwindow;
-	RETURN_IF_FAILED(CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_PPV_ARGS(&shellwindow)));
+	hr = CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_PPV_ARGS(&shellwindow));
+	if (FAILED(hr)) {
+		CoUninitialize();
+		return static_cast<unsigned>(hr);
+	}
 
-	long count;
-	shellwindow->get_Count(&count);
+	long count = 0;
+	hr = shellwindow->get_Count(&count);
+	if (FAILED(hr)) {
+		CoUninitialize();
+		return static_cast<unsigned>(hr);
+	}
+
 	for (long i = 0; i < count; i++)
 	{
 		CComPtr<IDispatch> pdisp;
 		CComVariant va(i, VT_I4);
-		if (SUCCEEDED(shellwindow->Item(va, &pdisp)) && (!!pdisp))
+		hr = shellwindow->Item(va, &pdisp);
+		if (FAILED(hr) || !pdisp)
 		{
-			CComPtr<IWebBrowserApp> pwba;
-			HRESULT h = pdisp->QueryInterface(IID_PPV_ARGS(&pwba));
-			if (FAILED(h))
+			continue;
+		}
+
+		CComPtr<IWebBrowserApp> pwba;
+		hr = pdisp->QueryInterface(IID_PPV_ARGS(&pwba));
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		HWND hwba;
+		hr = pwba->get_HWND((LONG_PTR*)&hwba);
+		if (SUCCEEDED(hr))
+		{
+			CComPtr<IServiceProvider> psp;
+			hr = pwba->QueryInterface(IID_PPV_ARGS(&psp));
+			if (FAILED(hr))
 			{
 				continue;
 			}
-			HWND hwba;
 
-			if (SUCCEEDED(pwba->get_HWND((LONG_PTR*)&hwba)))
+			CComPtr<IShellBrowser> psb;
+			hr = psp->QueryService(SID_STopLevelBrowser, IID_PPV_ARGS(&psb));
+			if (FAILED(hr))
 			{
-				CComPtr<IServiceProvider> psp;
-				h = pwba->QueryInterface(IID_PPV_ARGS(&psp));
-				if (FAILED(h))
+				continue;
+			}
+
+			CComPtr<IShellView> psv;
+			hr = psb->QueryActiveShellView(&psv);
+			if (FAILED(hr))
+			{
+				continue;
+			}
+
+			psv->Refresh();
+
+			CComPtr<IFolderView2> pfv;
+			hr = psv->QueryInterface(IID_PPV_ARGS(&pfv));
+			if (FAILED(hr))
+			{
+				continue;
+			}
+
+			CComPtr<IShellItemArray> items;
+			hr = pfv->Items(SVGIO_ALLVIEW, IID_PPV_ARGS(&items));
+			if (SUCCEEDED(hr))
+			{
+				DWORD itemCount = 0;
+				hr = items->GetCount(&itemCount);
+				if (SUCCEEDED(hr))
 				{
-					continue;
-				}
-				CComPtr<IShellBrowser> psb;
-				h = psp->QueryService(SID_STopLevelBrowser, IID_PPV_ARGS(&psb));
-				if (FAILED(h))
-				{
-					continue;
-				}
-				CComPtr<IShellView> psv;
-				h = psb->QueryActiveShellView(&psv);
-				if (FAILED(h))
-				{
-					continue;
-				}
-				psv->Refresh();
-				CComPtr<IFolderView2> pfv;
-				h = psv->QueryInterface(IID_PPV_ARGS(&pfv));
-				if (FAILED(h))
-				{
-					continue;
-				}
-				CComPtr<IShellItemArray> items;
-				if (SUCCEEDED(pfv->Items(SVGIO_ALLVIEW, IID_PPV_ARGS(&items))))
-				{
-					DWORD count = 0;
-					items->GetCount(&count);
-					for (DWORD i = 0; i < count; i++)
+					for (DWORD j = 0; j < itemCount; j++)
 					{
-						IShellItem* _item;
-						if (SUCCEEDED(items->GetItemAt(i, &_item)))
+						IShellItem* _item = nullptr;
+						hr = items->GetItemAt(j, &_item);
+						if (SUCCEEDED(hr) && _item)
 						{
 							LPWSTR filename = NULL;
-							if (SUCCEEDED(_item->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &filename)))
+							hr = _item->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &filename);
+							if (SUCCEEDED(hr) && filename)
 							{
 								ATL::CPath fpath(filename);
 								fpath.Canonicalize();
+
 								if (fpath.m_strPath.CompareNoCase(*folder_to_select) == 0)
 								{
 									try
 									{
-										if (SUCCEEDED(pfv->SelectItem(i, SVSI_EDIT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_POSITIONITEM)))
+										hr = pfv->SelectItem(j, SVSI_EDIT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_POSITIONITEM);
+										if (SUCCEEDED(hr))
 										{
-											// PostMessage(hwba, WM_KEYDOWN, VK_F2, 0);
 											CoUninitialize();
-											return S_OK;
+											return 0; // 成功
 										}
 									}
-									catch (const std::exception&)
+									catch (...)
 									{
 										CoUninitialize();
-										return E_UNEXPECTED;
+										return static_cast<unsigned>(E_UNEXPECTED);
 									}
+
+									// 释放获取的文件名
+									CoTaskMemFree(filename);
+								}
+								else
+								{
+									// 释放获取的文件名
+									CoTaskMemFree(filename);
 								}
 							}
 						}
@@ -454,8 +547,9 @@ unsigned __stdcall selectItem(void* pArguments)
 			}
 		}
 	}
+
 	CoUninitialize();
-	return E_UNEXPECTED;
+	return static_cast<unsigned>(E_UNEXPECTED);
 }
 
 /// <summary>
@@ -469,6 +563,10 @@ int CNewFolderExt::first_common_substring_length(const ATL::CString& str1, const
 	/*
 	 * 2022/3/18 重构，增加length_to_compare参数，用于提高处理速度。
 	 */
+	if (length_to_compare < 0) {
+		return 0; // 边界条件检查
+	}
+
 	int l = min(str1.GetLength(), str2.GetLength());
 	l = min(l, length_to_compare);
 	int result = l;
@@ -617,7 +715,11 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 		if (pszName && cchMax > 0)
 		{
 			// Convert wide string to char string for the output buffer
-			wcstombs_s(nullptr, pszName, cchMax, helpText, _TRUNCATE);
+			size_t converted = 0;
+			errno_t err = wcstombs_s(&converted, pszName, cchMax, helpText, _TRUNCATE);
+			if (err != 0) {
+				return E_FAIL; // 转换失败
+			}
 			return S_OK;
 		}
 	}
@@ -638,9 +740,18 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 		if (pszName && cchMax > 0)
 		{
 			// Convert wide string to char string for the output buffer
-			wcstombs_s(nullptr, pszName, cchMax, verb, _TRUNCATE);
+			size_t converted = 0;
+			errno_t err = wcstombs_s(&converted, pszName, cchMax, verb, _TRUNCATE);
+			if (err != 0) {
+				return E_FAIL; // 转换失败
+			}
 			return S_OK;
 		}
+	}
+	else
+	{
+		// 不支持的类型，返回错误
+		return E_INVALIDARG;
 	}
 
 	return S_OK; // Return S_OK when not handling specific types
