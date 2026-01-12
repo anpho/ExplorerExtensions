@@ -17,23 +17,33 @@
  */
 HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDataObject *pdtobj, HKEY hkeyProgID)
 {
-	m_selectedFolders.clear();
-	CComPtr<IShellItemArray> items;
-	CComPtr<IDataObject> dataObj;
-
+	// 输入验证
 	if (!pdtobj)
 	{
 		return E_INVALIDARG;
 	}
 
+	m_selectedFolders.clear();
+	CComPtr<IShellItemArray> items;
+	CComPtr<IDataObject> dataObj;
+
 	HRESULT hr = pdtobj->QueryInterface(IID_PPV_ARGS(&dataObj));
 	if (SUCCEEDED(hr))
 	{
 		hr = SHCreateShellItemArrayFromDataObject(pdtobj, IID_PPV_ARGS(&items));
+		if (FAILED(hr))
+		{
+			return hr;
+		}
 	}
 	else
 	{
+		// 如果不能从数据对象创建ShellItemArray，尝试直接查询
 		hr = pdtobj->QueryInterface(IID_PPV_ARGS(&items));
+		if (FAILED(hr))
+		{
+			return hr;
+		}
 	}
 
 	if (SUCCEEDED(hr))
@@ -45,8 +55,13 @@ HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDat
 		{
 			return hr;
 		}
+
+		// 限制处理的文件夹数量，防止过多操作
+		const DWORD MAX_FOLDERS_TO_PROCESS = 100;
+		DWORD processed_count = 0;
+
 		// 遍历所有选中的项目，保存文件夹到m_selectedFolders
-		for (DWORD i = 0; i < file_count; i++)
+		for (DWORD i = 0; i < file_count && processed_count < MAX_FOLDERS_TO_PROCESS; i++)
 		{
 			CComPtr<IShellItem> cur_item;  // 当前Shell项目
 			LPWSTR filename_buf = nullptr; // 文件名缓冲区
@@ -60,12 +75,34 @@ HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDat
 
 			// 获取项目的绝对路径
 			hr = cur_item->GetDisplayName(SIGDN::SIGDN_DESKTOPABSOLUTEPARSING, &filename_buf);
-			if (SUCCEEDED(hr))
+			if (SUCCEEDED(hr) && filename_buf)
 			{
+				// 验证路径的有效性
+				if (filename_buf[0] == L'\0')
+				{
+					CoTaskMemFree(filename_buf);
+					continue;
+				}
+
+				// 检查路径长度，防止过长路径
+				if (wcslen(filename_buf) >= MAX_PATH)
+				{
+					CoTaskMemFree(filename_buf);
+					continue;
+				}
+
 				// 检查是否为文件夹
 				if (PathIsDirectoryW(filename_buf))
 				{
-					m_selectedFolders.push_back(filename_buf);
+					// 额外验证路径是否有效
+					WIN32_FIND_DATAW findData;
+					HANDLE hFind = FindFirstFileW(filename_buf, &findData);
+					if (hFind != INVALID_HANDLE_VALUE)
+					{
+						FindClose(hFind);
+						m_selectedFolders.push_back(filename_buf);
+						processed_count++;
+					}
 				}
 				// 释放文件名缓冲区
 				CoTaskMemFree(filename_buf);
