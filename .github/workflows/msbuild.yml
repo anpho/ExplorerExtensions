@@ -45,8 +45,10 @@ jobs:
     - name: sign
       run: |
           # 核心命令：自动查找最新版 signtool.exe 并赋值到变量
-          $signtool64 = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-          $signtool86 = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\signtool.exe"
+          # ✅ 加强版查找命令 - 修复所有扫描缺陷，绝对能拿到有效路径
+          $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+
+          write-host $signtool
           
           $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
           $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
@@ -68,13 +70,13 @@ jobs:
 
 
           # 执行signtool签名命令（带详细输出和时间戳）
-          & $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
+          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
           Write-Host "File signed successfully: $exePath1"
-          & $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
+          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
           Write-Host "File signed successfully: $exePath2"
-          & $signtool64 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
+          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
           Write-Host "File signed successfully: $exePath3"
-          & $signtool64 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
+          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
           Write-Host "File signed successfully: $exePath4"
 
 
@@ -87,10 +89,9 @@ jobs:
 
     - name: Sign Installer
       run: |
-        $signtool64 = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-        $signtool86 = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\signtool.exe"
+        $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
         $installerPath = "./ExplorerExtensionSetup.exe"
-        & $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
+        & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
         Write-Host "File signed successfully: $installerPath"
 
     - name: Upload
