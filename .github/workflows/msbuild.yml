@@ -42,12 +42,57 @@ jobs:
       # Build 64-bit version
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
+    - name: sign
+      run: |
+          $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
+          $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+          # 输出证书路径（便于调试）
+          Write-Host "PFX certificate restored to: $pfxPath"
+          # 将PFX路径存入环境变量，后续步骤可直接调用
+          echo "PFX_PATH=$pfxPath" >> $env:GITHUB_ENV
+          
+    - name: Sign EXE with signtool
+      run: |
+          # 定义待签名的EXE路径（根据你的项目调整，此处为示例路径）
+          $exePath1 = "./src/build/ExplorerEnhancement_x86.dll"
+          $exePath2 = "./src/build/ExplorerEnhancementManager_x86.exe"
+          $exePath3 = "./src/build/ExplorerEnhancement_x64.dll"
+          $exePath4 = "./src/build/ExplorerEnhancementManager_x64.exe"
+          
+          $pfxPath = $env:PFX_PATH
+          $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
+          $timestampServer = "http://timestamp.digicert.com"
+
+          # 验证EXE文件是否存在
+          if (-not (Test-Path -Path $exePath1)) {
+              Write-Error "EXE file not found at: $exePath1"
+              exit 1
+          }
+
+          # 执行signtool签名命令（带详细输出和时间戳）
+          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
+          Write-Host "File signed successfully: $exePath1"
+          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
+          Write-Host "File signed successfully: $exePath2"
+          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
+          Write-Host "File signed successfully: $exePath3"
+          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
+          Write-Host "File signed successfully: $exePath4"
+
+
     - name: Install NSIS
       uses: negrutiu/nsis-install@v2
 
     - name: Build Installer
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: makensis Installer.nsi
+
+    - name: Sign Installer
+      run: |
+        $installerPath = "./ExplorerExtensionSetup.exe"
+        signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
+        Write-Host "File signed successfully: $installerPath"
 
     - name: Upload
       uses: actions/upload-artifact@v6.0.0
