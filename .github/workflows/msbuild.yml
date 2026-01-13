@@ -75,13 +75,13 @@ jobs:
           }
 
           # 执行signtool签名命令（带详细输出和时间戳）
-          $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
+          & $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
           Write-Host "File signed successfully: $exePath1"
-          $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
+          & $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
           Write-Host "File signed successfully: $exePath2"
-          $signtool64 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
+          & $signtool64 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
           Write-Host "File signed successfully: $exePath3"
-          $signtool64 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
+          & $signtool64 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
           Write-Host "File signed successfully: $exePath4"
 
 
@@ -95,7 +95,7 @@ jobs:
     - name: Sign Installer
       run: |
         $installerPath = "./ExplorerExtensionSetup.exe"
-        $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
+        & $signtool86 sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
         Write-Host "File signed successfully: $installerPath"
 
     - name: Upload
