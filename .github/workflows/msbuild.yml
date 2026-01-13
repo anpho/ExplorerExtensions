@@ -46,7 +46,10 @@ jobs:
       run: |
           # 核心命令：自动查找最新版 signtool.exe 并赋值到变量
           # ✅ 加强版查找命令 - 修复所有扫描缺陷，绝对能拿到有效路径
-          $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | 
+                Where-Object { $_.DirectoryName -match "\\x64\\" } | 
+                Sort-Object FullName -Descending | 
+                Select-Object -First 1).FullName
 
           write-host $signtool
           
@@ -89,7 +92,10 @@ jobs:
 
     - name: Sign Installer
       run: |
-        $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+        $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | 
+                Where-Object { $_.DirectoryName -match "\\x64\\" } | 
+                Sort-Object FullName -Descending | 
+                Select-Object -First 1).FullName
         $installerPath = "./ExplorerExtensionSetup.exe"
         & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
         Write-Host "File signed successfully: $installerPath"
