@@ -107,7 +107,8 @@ jobs:
           foreach ($file in $filesToSign) {
               if (Test-Path $file) {
                   Write-Host "Signing file: $file"
-                  & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$file" /fd SHA256
+                  # 确保参数顺序正确：/f (证书文件) /p (密码) /fd (哈希算法) /t (时间戳服务器) /v (目标文件)
+                  & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "$timestampServer" /v "$file"
                   if ($LASTEXITCODE -ne 0) {
                       Write-Warning "Failed to sign file: $file (Exit code: $LASTEXITCODE)"
                       # 不抛出异常，而是继续处理下一个文件
@@ -161,7 +162,8 @@ jobs:
 
         if (Test-Path $installerPath) {
             Write-Host "Signing installer: $installerPath"
-            & $signtoolPath sign /f "$env:PFX_PATH" /p "${{ secrets.PFX_PASSWORD }}" /t "http://timestamp.digicert.com" /v "$installerPath" /fd SHA256
+            # 确保参数顺序正确：/f (证书文件) /p (密码) /fd (哈希算法) /t (时间戳服务器) /v (目标文件)
+            & $signtoolPath sign /f "$env:PFX_PATH" /p "${{ secrets.PFX_PASSWORD }}" /fd SHA256 /t "http://timestamp.digicert.com" /v "$installerPath"
             if ($LASTEXITCODE -ne 0) {
                 Write-Warning "Failed to sign installer: $installerPath (Exit code: $LASTEXITCODE)"
             } else {
