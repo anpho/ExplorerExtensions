@@ -44,6 +44,11 @@ jobs:
 
     - name: sign
       run: |
+          # 核心命令：自动查找最新版 signtool.exe 并赋值到变量
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          # 调用 signtool 执行签名（替换成你的签名参数即可）
+
+          
           $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
           $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
           [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
@@ -71,13 +76,13 @@ jobs:
           }
 
           # 执行signtool签名命令（带详细输出和时间戳）
-          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
+          $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1"
           Write-Host "File signed successfully: $exePath1"
-          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
+          $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2"
           Write-Host "File signed successfully: $exePath2"
-          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
+          $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3"
           Write-Host "File signed successfully: $exePath3"
-          signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
+          $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4"
           Write-Host "File signed successfully: $exePath4"
 
 
@@ -91,7 +96,7 @@ jobs:
     - name: Sign Installer
       run: |
         $installerPath = "./ExplorerExtensionSetup.exe"
-        signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
+        $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"
         Write-Host "File signed successfully: $installerPath"
 
     - name: Upload
