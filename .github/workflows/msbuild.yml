@@ -90,7 +90,12 @@ jobs:
           $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
           [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
           Write-Host "PFX certificate restored to: $pfxPath"
-          echo "PFX_PATH=$pfxPath" >> $env:GITHUB_ENV
+
+          # 确保证书文件已创建且可访问
+          if (-not (Test-Path $pfxPath)) {
+              throw "Certificate file was not created at: $pfxPath"
+          }
+          Write-Host "Certificate file exists and is accessible."
 
           # 定义待签名的文件路径 - 使用实际构建输出路径
           $exePath1 = "./src/build/ExplorerEnhancement_x86.dll"
