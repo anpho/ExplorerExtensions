@@ -13,6 +13,19 @@ OutFile "ExplorerExtensionSetup.exe"
 ; 明确指定不需要管理员权限
 RequestExecutionLevel user
 
+; 版本和产品信息
+!define VERSION "26.1.13"
+!define PRODUCT_NAME "anpho's Explorer Extension"
+!define COPYRIGHT "x.com/anpho"
+
+VIProductVersion "${VERSION}.0"
+VIFileVersion "${VERSION}.0"
+VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
+VIAddVersionKey "CompanyName" "anpho"
+VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
+VIAddVersionKey "FileDescription" "Windows Explorer Context Menu Extension"
+VIAddVersionKey "ProductVersion" "${VERSION}"
+
 ; 定义安装目录
 InstallDir $LOCALAPPDATA\ExplorerEnhancement
 
