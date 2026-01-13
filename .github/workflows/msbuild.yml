@@ -2,9 +2,9 @@ name: MSBuild
 
 on:
   push:
-    
+
   pull_request:
-    
+
 
 env:
   # Path to the solution file relative to the root of the project.
@@ -43,45 +43,79 @@ jobs:
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
     - name: sign
+      shell: pwsh
       run: |
-          # 核心命令：自动查找最新版 signtool.exe 并赋值到变量
-          # ✅ 加强版查找命令 - 修复所有扫描缺陷，绝对能拿到有效路径
-          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | 
-                Where-Object { $_.DirectoryName -match "\\x64\\" } | 
-                Sort-Object FullName -Descending | 
-                Select-Object -First 1).FullName
+          # 改进的 signtool 查找逻辑
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
+                      Where-Object { $_.DirectoryName -match "\\x64\\" } |
+                      Sort-Object FullName -Descending |
+                      Select-Object -First 1
 
-          write-host $signtool
-          
+          # 检查是否找到了 signtool
+          if ($signtool -eq $null) {
+              Write-Host "Attempting alternative search methods..."
+              # 备选方案：搜索所有版本的 Windows SDK
+              $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -File -ErrorAction SilentlyContinue |
+                          Sort-Object FullName -Descending |
+                          Select-Object -First 1
+          }
+
+          # 如果仍然没有找到，则从环境变量或默认路径查找
+          if ($signtool -eq $null) {
+              Write-Host "Attempting to find signtool in common locations..."
+              $possiblePaths = @(
+                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
+                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe",
+                  "${env:ProgramFiles}\Microsoft SDKs\Windows\v*\Bin\Signtool.exe"
+              )
+              
+              foreach ($path in $possiblePaths) {
+                  $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($found) {
+                      $signtool = $found
+                      break
+                  }
+              }
+          }
+
+          # 验证是否找到了 signtool
+          if ($signtool -eq $null) {
+              throw "Could not find signtool.exe in any known location."
+          } else {
+              $signtoolPath = $signtool.FullName
+              Write-Host "Found signtool at: $signtoolPath"
+          }
+
           $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
           $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
           [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
-          # 输出证书路径（便于调试）
           Write-Host "PFX certificate restored to: $pfxPath"
-          # 将PFX路径存入环境变量，后续步骤可直接调用
           echo "PFX_PATH=$pfxPath" >> $env:GITHUB_ENV
-          
-          # 定义待签名的EXE路径（根据你的项目调整，此处为示例路径）
+
+          # 定义待签名的文件路径 - 注意：需要确认这些路径是否正确
           $exePath1 = "./src/build/ExplorerEnhancement_x86.dll"
           $exePath2 = "./src/build/ExplorerEnhancementManager_x86.exe"
           $exePath3 = "./src/build/ExplorerEnhancement_x64.dll"
           $exePath4 = "./src/build/ExplorerEnhancementManager_x64.exe"
-          
+
           $pfxPath = $env:PFX_PATH
           $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
           $timestampServer = "http://timestamp.digicert.com"
 
-
-          # 执行signtool签名命令（带详细输出和时间戳）
-          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath1" /fd SHA256
-          Write-Host "File signed successfully: $exePath1"
-          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath2" /fd SHA256
-          Write-Host "File signed successfully: $exePath2"
-          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath3" /fd SHA256
-          Write-Host "File signed successfully: $exePath3"
-          & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$exePath4" /fd SHA256
-          Write-Host "File signed successfully: $exePath4"
-
+          # 签名前先检查文件是否存在
+          $filesToSign = @($exePath1, $exePath2, $exePath3, $exePath4)
+          foreach ($file in $filesToSign) {
+              if (Test-Path $file) {
+                  Write-Host "Signing file: $file"
+                  & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$file" /fd SHA256
+                  if ($LASTEXITCODE -ne 0) {
+                      throw "Failed to sign file: $file"
+                  }
+                  Write-Host "Successfully signed: $file"
+              } else {
+                  Write-Warning "File not found: $file"
+              }
+          }
 
     - name: Install NSIS
       uses: negrutiu/nsis-install@v2
@@ -91,14 +125,48 @@ jobs:
       run: makensis Installer.nsi
 
     - name: Sign Installer
+      shell: pwsh
       run: |
-        $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue | 
-                Where-Object { $_.DirectoryName -match "\\x64\\" } | 
-                Sort-Object FullName -Descending | 
-                Select-Object -First 1).FullName
+        # 对安装程序进行相同的改进
+        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
+                    Where-Object { $_.DirectoryName -match "\\x64\\" } |
+                    Sort-Object FullName -Descending |
+                    Select-Object -First 1
+
+        if ($signtool -eq $null) {
+            $possiblePaths = @(
+                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
+                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe"
+            )
+            
+            foreach ($path in $possiblePaths) {
+                $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) {
+                    $signtool = $found
+                    break
+                }
+            }
+        }
+
+        if ($signtool -eq $null) {
+            throw "Could not find signtool.exe in any known location."
+        } else {
+            $signtoolPath = $signtool.FullName
+            Write-Host "Found signtool at: $signtoolPath"
+        }
+
         $installerPath = "./ExplorerExtensionSetup.exe"
-        & $signtool sign /f "$pfxPath" /p "$pfxPassword" /t "$timestampServer" /v "$installerPath"  /fd SHA256
-        Write-Host "File signed successfully: $installerPath"
+        
+        if (Test-Path $installerPath) {
+            Write-Host "Signing installer: $installerPath"
+            & $signtoolPath sign /f "$env:PFX_PATH" /p "${{ secrets.PFX_PASSWORD }}" /t "http://timestamp.digicert.com" /v "$installerPath" /fd SHA256
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to sign installer: $installerPath"
+            }
+            Write-Host "Successfully signed installer: $installerPath"
+        } else {
+            Write-Warning "Installer not found: $installerPath"
+        }
 
     - name: Upload
       uses: actions/upload-artifact@v6.0.0
@@ -106,4 +174,3 @@ jobs:
         name: WindowsExplorerExtensions_Installer
         path: |
           ./ExplorerExtensionSetup.exe
-
