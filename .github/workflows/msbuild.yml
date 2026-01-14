@@ -97,17 +97,24 @@ jobs:
           }
           Write-Host "Certificate file exists and is accessible."
 
-          # 定义待签名的文件路径 - 使用实际构建输出路径
-          $exePath1 = "./src/build/ExplorerEnhancement_x86.dll"
-          $exePath2 = "./src/build/ExplorerEnhancementManager_x86.exe"
-          $exePath3 = "./src/build/ExplorerEnhancement_x64.dll"
-          $exePath4 = "./src/build/ExplorerEnhancementManager_x64.exe"
-
           $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
           $timestampServer = "http://timestamp.digicert.com"
 
+          # 动态查找所有DLL和EXE文件进行签名
+          $buildDir = "./src/build"
+          $filesToSign = @()
+
+          if (Test-Path $buildDir) {
+              # 查找所有DLL和EXE文件
+              $dllFiles = Get-ChildItem -Path $buildDir -Recurse -Include "*.dll" | ForEach-Object { $_.FullName }
+              $exeFiles = Get-ChildItem -Path $buildDir -Recurse -Include "*.exe" | ForEach-Object { $_.FullName }
+
+              $filesToSign = $dllFiles + $exeFiles
+          } else {
+              Write-Warning "Build directory not found: $buildDir"
+          }
+
           # 签名前先检查文件是否存在
-          $filesToSign = @($exePath1, $exePath2, $exePath3, $exePath4)
           foreach ($file in $filesToSign) {
               if (Test-Path $file) {
                   Write-Host "Signing file: $file"
