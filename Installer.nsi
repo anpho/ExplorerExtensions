@@ -41,32 +41,6 @@ UninstPage InstFiles
 ; Define registry constants for Add/Remove Programs
 !define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anpho's Extensions"
 
-; Function to restart Windows Explorer for installation
-Function RestartExplorer
-    ; Terminate Explorer
-    System::Call 'shell32::SHChangeNotify(i 0x8000000, i 0, i 0, i 0)'
-    ExecWait 'taskkill /f /im explorer.exe'
-    ; Wait a moment
-    Sleep 1000
-    ; Restart Explorer
-    ExecShell "open" "explorer.exe"
-    ; Wait for Explorer to fully start
-    Sleep 1000
-FunctionEnd
-
-; Function to restart Windows Explorer for uninstallation
-Function un.RestartExplorer
-    ; Terminate Explorer
-    System::Call 'shell32::SHChangeNotify(i 0x8000000, i 0, i 0, i 0)'
-    ExecWait 'taskkill /f /im explorer.exe'
-    ; Wait a moment
-    Sleep 1000
-    ; Restart Explorer
-    ExecShell "open" "explorer.exe"
-    ; Wait for Explorer to fully start
-    Sleep 1000
-FunctionEnd
-
 ; Main installation section
 Section "Main Section" SEC01
     ; Set output path
@@ -74,32 +48,9 @@ Section "Main Section" SEC01
 
     ; Install 64-bit version by default
     IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
-        ; Try to unregister and delete old DLL
         ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
-        Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
-        ; Check if DLL still exists
-        IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_restart_install
-            ; Prompt user to restart Explorer
-            MessageBox MB_ICONEXCLAMATION "The old DLL file cannot be deleted. Windows Explorer needs to be restarted to complete the installation.\r\nClick OK to restart Explorer and continue."
-            Call RestartExplorer
-            ; Try again to delete old DLL
-            Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
-        skip_restart_install:
     skip_unreg_x64:
-    
-    ; Try to install new DLL
     File "src\build\ExplorerEnhancement_x64.dll"
-    ; Check if DLL was installed successfully
-    IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 dll_install_failed
-        Goto dll_install_success
-    dll_install_failed:
-        ; Prompt user to restart Explorer
-        MessageBox MB_ICONEXCLAMATION "The new DLL file cannot be installed. Windows Explorer needs to be restarted to complete the installation.\r\nClick OK to restart Explorer and continue."
-        Call RestartExplorer
-        ; Try again to install new DLL
-        File "src\build\ExplorerEnhancement_x64.dll"
-    dll_install_success:
-    
     File "src\build\ExplorerEnhancementManager_x64.exe"
 
     ; Register DLL
@@ -132,17 +83,7 @@ SectionEnd
 Section "Uninstall"
     ; Unregister DLL
     ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
-    ; Try to delete DLL
     Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
-    ; Check if DLL still exists
-    IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 dll_deleted
-        ; Prompt user to restart Explorer
-        MessageBox MB_ICONEXCLAMATION "The DLL file cannot be deleted. Windows Explorer needs to be restarted to complete the uninstallation.\r\nClick OK to restart Explorer and continue."
-        Call un.RestartExplorer
-        ; Try again to delete DLL
-        Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
-    dll_deleted:
-    
     Delete "$INSTDIR\ExplorerEnhancementManager_x64.exe"
 
     ; Delete shortcuts
