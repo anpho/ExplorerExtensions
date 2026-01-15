@@ -1,20 +1,13 @@
 ; Windows Explorer Extension Installer
 ; NSIS Script
 
-; ??????
 SetCompressor /SOLID lzma
 
-; ????????
 OutFile "ExplorerExtensionSetup.exe"
 
-; ????????????
-; Icon "icon.ico"
-
-; ????????????
 RequestExecutionLevel user
 
-; ???????
-!define VERSION "26.1.13"
+!define VERSION "26.1.15"
 !define PRODUCT_NAME "anpho's Extensions"
 !define COPYRIGHT "x.com/anpho"
 
@@ -26,30 +19,23 @@ VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
 VIAddVersionKey "FileDescription" "Windows Explorer Context Menu Extension"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 
-; ??????
 InstallDir $LOCALAPPDATA\ExplorerEnhancement
 
-; ??????
 Page Directory
 Page InstFiles
 
-; ??????
 UninstPage UninstConfirm
 UninstPage InstFiles
 
 ; Define registry constants for Add/Remove Programs
 !define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anpho's Extensions"
 
-; ????????
 Section "Main Section" SEC01
-    ; ??????
-    SetOutPath $INSTDIR
 
-    ; ??????
+    SetOutPath $INSTDIR
     StrCmp $PROCESSOR_ARCHITECTURE "x86" arch_x86 arch_x64
 
     arch_x86:
-        ; ?????????DLL?????
         IfFileExists "$INSTDIR\ExplorerEnhancement_x86.dll" 0 skip_unreg_x86
             ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
         skip_unreg_x86:
@@ -58,7 +44,6 @@ Section "Main Section" SEC01
         Goto arch_end
 
     arch_x64:
-        ; ?????????DLL?????
         IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
             ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
         skip_unreg_x64:
@@ -67,7 +52,6 @@ Section "Main Section" SEC01
 
     arch_end:
 
-    ; ??DLL
     StrCmp $PROCESSOR_ARCHITECTURE "x86" reg_x86 reg_x64
 
     reg_x86:
@@ -79,7 +63,7 @@ Section "Main Section" SEC01
 
     reg_end:
 
-    ; ??????????
+
     CreateDirectory "$SMPROGRAMS\anpho's Extensions"
     StrCmp $PROCESSOR_ARCHITECTURE "x86" shortcut_x86 shortcut_x64
 
@@ -93,10 +77,8 @@ Section "Main Section" SEC01
     shortcut_end:
     CreateShortcut "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk" "$INSTDIR\uninstall.exe"
 
-    ; ??????
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
-    ; ???"???????"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayIcon" "$INSTDIR\ExplorerEnhancementManager_x64.exe,0"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayVersion" "${VERSION}"
@@ -111,9 +93,7 @@ Section "Main Section" SEC01
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "HelpLink" "mailto:support@anpho.cn"
 SectionEnd
 
-; ??????
 Section "Uninstall"
-    ; ????DLL
     StrCmp $PROCESSOR_ARCHITECTURE "x86" unreg_x86 unreg_x64
 
     unreg_x86:
@@ -129,27 +109,21 @@ Section "Uninstall"
 
     unreg_end:
 
-    ; ??????
     Delete "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk"
     Delete "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk"
     RMDir "$SMPROGRAMS\anpho's Extensions"
 
-    ; ??????
     Delete "$INSTDIR\uninstall.exe"
 
-    ; ?"???????"???????
     DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"
 
-    ; ??????
     RMDir "$INSTDIR"
 
-    ; ??????Windows Explorer
-    MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
+    MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.Please restart Windows Explorer or your computer for the changes to take effect."
 SectionEnd
 
-; ???????????Windows Explorer???ExplorerEnhancementManager??
 Function .onInstSuccess
-    ; ???????????ExplorerEnhancementManager??
+
     StrCmp $PROCESSOR_ARCHITECTURE "x86" start_x86 start_x64
     
     start_x86:
@@ -160,7 +134,4 @@ Function .onInstSuccess
         ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
     
     start_end:
-    
-    ; ?????????
-    ;MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nThe Explorer Enhancement Manager has been started.\r\nPlease restart Windows Explorer or your computer if the context menu items do not appear."
 FunctionEnd
