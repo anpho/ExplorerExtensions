@@ -1,19 +1,19 @@
 ; Windows Explorer Extension Installer
 ; NSIS Script
 
-; Set compression
+; ??????
 SetCompressor /SOLID lzma
 
-; Set output file
+; ????????
 OutFile "ExplorerExtensionSetup.exe"
 
-; Set installation icon
+; ????????????
 ; Icon "icon.ico"
 
-; Set request execution level
+; ????????????
 RequestExecutionLevel user
 
-; Define version information
+; ???????
 !define VERSION "26.1.13"
 !define PRODUCT_NAME "anpho's Extensions"
 !define COPYRIGHT "x.com/anpho"
@@ -25,46 +25,78 @@ VIAddVersionKey "CompanyName" "anpho"
 VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
 VIAddVersionKey "FileDescription" "Windows Explorer Context Menu Extension"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "FileVersion" "${VERSION}.0"
 
-; Set installation directory
+; ??????
 InstallDir $LOCALAPPDATA\ExplorerEnhancement
 
-; Set installation pages
+; ??????
 Page Directory
 Page InstFiles
 
-; Set uninstallation pages
+; ??????
 UninstPage UninstConfirm
 UninstPage InstFiles
 
 ; Define registry constants for Add/Remove Programs
 !define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anpho's Extensions"
 
-; Main installation section
+; ????????
 Section "Main Section" SEC01
-    ; Set output path
+    ; ??????
     SetOutPath $INSTDIR
 
-    ; Install 64-bit version by default
-    IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
-        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
-    skip_unreg_x64:
-    File "src\build\ExplorerEnhancement_x64.dll"
-    File "src\build\ExplorerEnhancementManager_x64.exe"
+    ; ??????
+    StrCmp $PROCESSOR_ARCHITECTURE "x86" arch_x86 arch_x64
 
-    ; Register DLL
-    ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x64.dll'
+    arch_x86:
+        ; ?????????DLL?????
+        IfFileExists "$INSTDIR\ExplorerEnhancement_x86.dll" 0 skip_unreg_x86
+            ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
+        skip_unreg_x86:
+        File "src\build\ExplorerEnhancement_x86.dll"
+        File "src\build\ExplorerEnhancementManager_x86.exe"
+        Goto arch_end
 
-    ; Create start menu shortcuts
+    arch_x64:
+        ; ?????????DLL?????
+        IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
+            ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
+        skip_unreg_x64:
+        File "src\build\ExplorerEnhancement_x64.dll"
+        File "src\build\ExplorerEnhancementManager_x64.exe"
+
+    arch_end:
+
+    ; ??DLL
+    StrCmp $PROCESSOR_ARCHITECTURE "x86" reg_x86 reg_x64
+
+    reg_x86:
+        ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x86.dll'
+        Goto reg_end
+
+    reg_x64:
+        ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x64.dll'
+
+    reg_end:
+
+    ; ??????????
     CreateDirectory "$SMPROGRAMS\anpho's Extensions"
-    CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+    StrCmp $PROCESSOR_ARCHITECTURE "x86" shortcut_x86 shortcut_x64
+
+    shortcut_x86:
+        CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+        Goto shortcut_end
+
+    shortcut_x64:
+        CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+
+    shortcut_end:
     CreateShortcut "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk" "$INSTDIR\uninstall.exe"
 
-    ; Create uninstaller
+    ; ??????
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
-    ; Set Add/Remove Programs information
+    ; ???"???????"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayIcon" "$INSTDIR\ExplorerEnhancementManager_x64.exe,0"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayVersion" "${VERSION}"
@@ -79,33 +111,56 @@ Section "Main Section" SEC01
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "HelpLink" "mailto:support@anpho.cn"
 SectionEnd
 
-; Uninstallation section
+; ??????
 Section "Uninstall"
-    ; Unregister DLL
-    ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
-    Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
-    Delete "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+    ; ????DLL
+    StrCmp $PROCESSOR_ARCHITECTURE "x86" unreg_x86 unreg_x64
 
-    ; Delete shortcuts
+    unreg_x86:
+        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
+        Delete "$INSTDIR\ExplorerEnhancement_x86.dll"
+        Delete "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+        Goto unreg_end
+
+    unreg_x64:
+        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
+        Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
+        Delete "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+
+    unreg_end:
+
+    ; ??????
     Delete "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk"
     Delete "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk"
     RMDir "$SMPROGRAMS\anpho's Extensions"
 
-    ; Delete uninstaller
+    ; ??????
     Delete "$INSTDIR\uninstall.exe"
 
-    ; Delete Add/Remove Programs information
+    ; ?"???????"???????
     DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"
 
-    ; Delete installation directory
+    ; ??????
     RMDir "$INSTDIR"
 
-    ; Prompt user to restart Windows Explorer
+    ; ??????Windows Explorer
     MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
 SectionEnd
 
-; Function executed after successful installation
+; ???????????Windows Explorer???ExplorerEnhancementManager??
 Function .onInstSuccess
-    ; Start ExplorerEnhancementManager program
-    ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+    ; ???????????ExplorerEnhancementManager??
+    StrCmp $PROCESSOR_ARCHITECTURE "x86" start_x86 start_x64
+    
+    start_x86:
+        ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+        Goto start_end
+    
+    start_x64:
+        ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+    
+    start_end:
+    
+    ; ?????????
+    ;MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nThe Explorer Enhancement Manager has been started.\r\nPlease restart Windows Explorer or your computer if the context menu items do not appear."
 FunctionEnd
