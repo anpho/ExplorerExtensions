@@ -10,7 +10,7 @@
   IgnorableNamespaces="uap uap2 uap3 rescap desktop uap10">
 	<Identity Name="ExplorerEnhancement" ProcessorArchitecture="x64" Publisher="CN=anpho" Version="1.0.0.0" />
 	<Properties>
-		<DisplayName>ExplorerEnhancement</DisplayName>
+		<DisplayName>anpho's Extensions</DisplayName>
 		<PublisherDisplayName>anpho</PublisherDisplayName>
 		<Logo>logo.png</Logo>
 		<uap10:AllowExternalContent>true</uap10:AllowExternalContent>

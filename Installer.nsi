@@ -1,21 +1,21 @@
 ; Windows Explorer Extension Installer
 ; NSIS Script
 
-; 设置压缩算法
+; ??????
 SetCompressor /SOLID lzma
 
-; 定义安装程序名称
+; ????????
 OutFile "ExplorerExtensionSetup.exe"
 
-; 定义安装程序图标（可选）
+; ????????????
 ; Icon "icon.ico"
 
-; 明确指定不需要管理员权限
+; ????????????
 RequestExecutionLevel user
 
-; 版本和产品信息
+; ???????
 !define VERSION "26.1.13"
-!define PRODUCT_NAME "anpho's Explorer Extension"
+!define PRODUCT_NAME "anpho's Extensions"
 !define COPYRIGHT "x.com/anpho"
 
 VIProductVersion "${VERSION}.0"
@@ -26,30 +26,30 @@ VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
 VIAddVersionKey "FileDescription" "Windows Explorer Context Menu Extension"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 
-; 定义安装目录
+; ??????
 InstallDir $LOCALAPPDATA\ExplorerEnhancement
 
-; 安装程序页面
+; ??????
 Page Directory
 Page InstFiles
 
-; 卸载程序页面
+; ??????
 UninstPage UninstConfirm
 UninstPage InstFiles
 
 ; Define registry constants for Add/Remove Programs
-!define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anpho's Explorer Extension"
+!define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anpho's Extensions"
 
-; 定义安装程序区域
+; ????????
 Section "Main Section" SEC01
-    ; 设置输出目录
+    ; ??????
     SetOutPath $INSTDIR
 
-    ; 检测系统架构
+    ; ??????
     StrCmp $PROCESSOR_ARCHITECTURE "x86" arch_x86 arch_x64
 
     arch_x86:
-        ; 先取消注册已存在的DLL（如果有）
+        ; ?????????DLL?????
         IfFileExists "$INSTDIR\ExplorerEnhancement_x86.dll" 0 skip_unreg_x86
             ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
         skip_unreg_x86:
@@ -58,7 +58,7 @@ Section "Main Section" SEC01
         Goto arch_end
 
     arch_x64:
-        ; 先取消注册已存在的DLL（如果有）
+        ; ?????????DLL?????
         IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
             ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
         skip_unreg_x64:
@@ -67,7 +67,7 @@ Section "Main Section" SEC01
 
     arch_end:
 
-    ; 注册DLL
+    ; ??DLL
     StrCmp $PROCESSOR_ARCHITECTURE "x86" reg_x86 reg_x64
 
     reg_x86:
@@ -79,24 +79,24 @@ Section "Main Section" SEC01
 
     reg_end:
 
-    ; 创建开始菜单快捷方式
-    CreateDirectory "$SMPROGRAMS\ExplorerEnhancement"
+    ; ??????????
+    CreateDirectory "$SMPROGRAMS\anpho's Extensions"
     StrCmp $PROCESSOR_ARCHITECTURE "x86" shortcut_x86 shortcut_x64
 
     shortcut_x86:
-        CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+        CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
         Goto shortcut_end
 
     shortcut_x64:
-        CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
+        CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
 
     shortcut_end:
-    CreateShortcut "$SMPROGRAMS\ExplorerEnhancement\Uninstall.lnk" "$INSTDIR\uninstall.exe"
+    CreateShortcut "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk" "$INSTDIR\uninstall.exe"
 
-    ; 创建卸载程序
+    ; ??????
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
-    ; 添加到"添加或删除程序"
+    ; ???"???????"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayIcon" "$INSTDIR\ExplorerEnhancementManager_x64.exe,0"
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayVersion" "${VERSION}"
@@ -111,9 +111,9 @@ Section "Main Section" SEC01
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "HelpLink" "mailto:support@anpho.cn"
 SectionEnd
 
-; 卸载程序区域
+; ??????
 Section "Uninstall"
-    ; 取消注册DLL
+    ; ????DLL
     StrCmp $PROCESSOR_ARCHITECTURE "x86" unreg_x86 unreg_x64
 
     unreg_x86:
@@ -129,27 +129,27 @@ Section "Uninstall"
 
     unreg_end:
 
-    ; 删除快捷方式
-    Delete "$SMPROGRAMS\ExplorerEnhancement\Explorer Enhancement Manager.lnk"
-    Delete "$SMPROGRAMS\ExplorerEnhancement\Uninstall.lnk"
-    RMDir "$SMPROGRAMS\ExplorerEnhancement"
+    ; ??????
+    Delete "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk"
+    Delete "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk"
+    RMDir "$SMPROGRAMS\anpho's Extensions"
 
-    ; 删除卸载程序
+    ; ??????
     Delete "$INSTDIR\uninstall.exe"
 
-    ; 从"添加或删除程序"中移除注册表项
+    ; ?"???????"???????
     DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"
 
-    ; 删除安装目录
+    ; ??????
     RMDir "$INSTDIR"
 
-    ; 提示用户重启Windows Explorer
+    ; ??????Windows Explorer
     MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.\r\nPlease restart Windows Explorer or your computer for the changes to take effect."
 SectionEnd
 
-; 安装完成后提示用户重启Windows Explorer并启动ExplorerEnhancementManager应用
+; ???????????Windows Explorer???ExplorerEnhancementManager??
 Function .onInstSuccess
-    ; 根据系统架构启动相应的ExplorerEnhancementManager应用
+    ; ???????????ExplorerEnhancementManager??
     StrCmp $PROCESSOR_ARCHITECTURE "x86" start_x86 start_x64
     
     start_x86:
@@ -161,6 +161,6 @@ Function .onInstSuccess
     
     start_end:
     
-    ; 提示用户已安装完成
+    ; ?????????
     ;MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully installed.\r\nThe Explorer Enhancement Manager has been started.\r\nPlease restart Windows Explorer or your computer if the context menu items do not appear."
 FunctionEnd

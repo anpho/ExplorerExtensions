@@ -61,7 +61,7 @@ END
 
 IDD_MAIN_DIALOG DIALOGEX 0, 0, 350, 101
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
-CAPTION "anpho's Explorer Extensions"
+CAPTION "anpho's Extensions"
 FONT 9, "Segoe UI", 0, 0, 0x0
 BEGIN
     LTEXT           "管理 Windows Explorer 上下文菜单扩展",IDC_STATIC,10,6,310,18
@@ -74,12 +74,12 @@ END
 
 IDD_ABOUT_DIALOG DIALOGEX 0, 0, 300, 145
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
-CAPTION "关于 anpho's Explorer Extensions"
+CAPTION "关于 anpho's Extensions"
 FONT 9, "Segoe UI", 0, 0, 0x0
 BEGIN
     ICON            IDI_ICON2,IDC_STATIC,16,14,20,20
-    LTEXT           "anpho's Explorer Extensions 管理器（个人免费版）",IDC_STATIC,46,18,235,10
-    LTEXT           "用于管理 anpho's Explorer Extensions 上下文菜单扩展，非个人使用请购买授权。",IDC_STATIC,15,41,260,20
+    LTEXT           "anpho's Extensions 管理器（个人免费版）",IDC_STATIC,46,18,235,10
+    LTEXT           "用于管理 anpho's Extensions 上下文菜单扩展，非个人使用请购买授权。",IDC_STATIC,15,41,260,20
     DEFPUSHBUTTON   "确定",IDOK,212,120,80,18,BS_CENTER | BS_VCENTER | WS_GROUP
     DEFPUSHBUTTON   "购买商业版",IDC_BUY_BUTTON,11,120,80,18,BS_CENTER | BS_VCENTER | NOT WS_VISIBLE | WS_GROUP
     LTEXT           "命令行参数：\n/install 注册DLL（默认）\n/uninstall 卸载 DLL",IDC_STATIC,15,66,252,37
@@ -143,7 +143,7 @@ IDI_ICON2               ICON                    "icon.ico"
 
 STRINGTABLE
 BEGIN
-    IDS_MAIN_TITLE          "anpho's Explorer Extensions"
+    IDS_MAIN_TITLE          "anpho's Extensions"
     IDS_MAIN_DESCRIPTION    "管理 Windows Explorer 上下文菜单扩展"
     IDS_BREAKFOLDER_CHECK   "启用 摊开文件夹 菜单"
     IDS_NEWFOLDER_CHECK     "启用 新建文件夹+ 菜单"
