@@ -19,18 +19,3 @@
 #include <atlcom.h>
 #include <atlctl.h>
 
-// 定义缺失的宏
-#define RETURN_IF_FAILED(hr) \
-    do { \
-        HRESULT _hr = hr; \
-        if (FAILED(_hr)) { \
-            return _hr; \
-        } \
-    } while(0)
-
-#define RETURN_IF_NULL_ALLOC(ptr) \
-    do { \
-        if ((ptr) == nullptr) { \
-            return E_OUTOFMEMORY; \
-        } \
-    } while(0)
