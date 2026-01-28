@@ -101,17 +101,26 @@ jobs:
           $timestampServer = "http://timestamp.digicert.com"
 
           # 动态查找所有DLL和EXE文件进行签名
-          $buildDir = "./src/build"
+          $x86BuildDir = "./src/Release"
+          $x64BuildDir = "./src/x64/Release"
           $filesToSign = @()
 
-          if (Test-Path $buildDir) {
-              # 查找所有DLL和EXE文件
-              $dllFiles = Get-ChildItem -Path $buildDir -Recurse -Include "*.dll" | ForEach-Object { $_.FullName }
-              $exeFiles = Get-ChildItem -Path $buildDir -Recurse -Include "*.exe" | ForEach-Object { $_.FullName }
-
-              $filesToSign = $dllFiles + $exeFiles
+          # 查找x86构建输出
+          if (Test-Path $x86BuildDir) {
+              $dllFiles = Get-ChildItem -Path $x86BuildDir -Recurse -Include "*.dll" | ForEach-Object { $_.FullName }
+              $exeFiles = Get-ChildItem -Path $x86BuildDir -Recurse -Include "*.exe" | ForEach-Object { $_.FullName }
+              $filesToSign += $dllFiles + $exeFiles
           } else {
-              Write-Warning "Build directory not found: $buildDir"
+              Write-Warning "x86 build directory not found: $x86BuildDir"
+          }
+
+          # 查找x64构建输出
+          if (Test-Path $x64BuildDir) {
+              $dllFiles = Get-ChildItem -Path $x64BuildDir -Recurse -Include "*.dll" | ForEach-Object { $_.FullName }
+              $exeFiles = Get-ChildItem -Path $x64BuildDir -Recurse -Include "*.exe" | ForEach-Object { $_.FullName }
+              $filesToSign += $dllFiles + $exeFiles
+          } else {
+              Write-Warning "x64 build directory not found: $x64BuildDir"
           }
 
           # 签名前先检查文件是否存在
