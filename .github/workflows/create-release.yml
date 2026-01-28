@@ -1,0 +1,330 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 触发以 v 开头的标签
+
+permissions:
+  contents: write  # 需要写入权限来创建 releases
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v6.0.1
+
+    - name: Get tag name
+      id: tag
+      run: |
+        echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $env:GITHUB_OUTPUT
+        # Extract version number from tag (remove 'v' prefix)
+        $version = "${GITHUB_REF#refs/tags/v}"
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+      shell: bash
+
+    - name: Display version info
+      run: |
+        echo "Tag: ${{ steps.tag.outputs.TAG_NAME }}"
+        echo "Version: ${{ steps.tag.outputs.VERSION }}"
+
+    - name: Update version in ExplorerEnhancement.rc
+      shell: pwsh
+      run: |
+        # Parse version from tag (e.g., v1.0 -> 1,0,0,0 or v1.0.1 -> 1,0,1,0)
+        $versionStr = "${{ steps.tag.outputs.VERSION }}"
+        $versionParts = $versionStr.Split('.')
+        
+        # Pad version to 4 parts if needed (e.g., 1.0 becomes 1.0.0.0)
+        while ($versionParts.Count -lt 4) {
+            $versionParts += "0"
+        }
+        
+        # Create version numbers for FILEVERSION and PRODUCTVERSION
+        $fileVersion = $versionParts -join ","
+        $productVersion = $versionParts -join ","
+        
+        # Also update the string values
+        $stringVersion = $versionParts -join "."
+        
+        Write-Host "Updating version to: $stringVersion"
+        
+        # Read the RC file
+        $rcFile = "src\ExplorerEnhancement\ExplorerEnhancement.rc"
+        $content = Get-Content $rcFile -Raw
+        
+        # Replace version info
+        $content = $content -replace '(FILEVERSION\s+)\d+,\d+,\d+,\d+', "`${1}$fileVersion"
+        $content = $content -replace '(PRODUCTVERSION\s+)\d+,\d+,\d+,\d+', "`${1}$productVersion"
+        $content = $content -replace '(VALUE "FileVersion",\s+")\d+\.\d+\.\d+\.\d+(")', "`${1}$stringVersion`${2}"
+        $content = $content -replace '(VALUE "ProductVersion",\s+")\d+\.\d+\.\d+\.\d+(")', "`${1}$stringVersion`${2}"
+        
+        # Write back the updated content
+        Set-Content $rcFile $content -Encoding UTF8
+        
+        Write-Host "Updated version in ExplorerEnhancement.rc"
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore ./src
+
+    - name: Build x86
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=Release /p:Platform=Win32 ./src
+
+    - name: Build x64
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=Release /p:Platform=x64 ./src
+
+    - name: sign
+      shell: pwsh
+      run: |
+          # 改进的 signtool 查找逻辑
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
+                      Where-Object { $_.DirectoryName -match "\\x64\\" } |
+                      Sort-Object FullName -Descending |
+                      Select-Object -First 1
+
+          # 检查是否找到了 signtool
+          if ($signtool -eq $null) {
+              Write-Host "Attempting alternative search methods..."
+              # 备选方案：搜索所有版本的 Windows SDK
+              $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -File -ErrorAction SilentlyContinue |
+                          Sort-Object FullName -Descending |
+                          Select-Object -First 1
+          }
+
+          # 如果仍然没有找到，则从环境变量或默认路径查找
+          if ($signtool -eq $null) {
+              Write-Host "Attempting to find signtool in common locations..."
+              $possiblePaths = @(
+                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
+                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe",
+                  "${env:ProgramFiles}\Microsoft SDKs\Windows\v*\Bin\Signtool.exe"
+              )
+
+              foreach ($path in $possiblePaths) {
+                  $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($found) {
+                      $signtool = $found
+                      break
+                  }
+              }
+          }
+
+          # 验证是否找到了 signtool
+          if ($signtool -eq $null) {
+              throw "Could not find signtool.exe in any known location."
+          } else {
+              $signtoolPath = $signtool.FullName
+              Write-Host "Found signtool at: $signtoolPath"
+          }
+
+          $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
+          $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+          Write-Host "PFX certificate restored to: $pfxPath"
+
+          # 确保证书文件已创建且可访问
+          if (-not (Test-Path $pfxPath)) {
+              throw "Certificate file was not created at: $pfxPath"
+          }
+          Write-Host "Certificate file exists and is accessible."
+
+          $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
+          $timestampServer = "http://timestamp.digicert.com"
+
+          # 查找并签名所有构建输出文件
+          $filesToSign = @()
+          
+          # 添加x86构建输出
+          $x86Dll = "./src/Release/ExplorerEnhancement.dll"
+          if (Test-Path $x86Dll) {
+              $filesToSign += $x86Dll
+          }
+          
+          $x86Exe = "./src/Release/ExplorerEnhancementManager.exe"
+          if (Test-Path $x86Exe) {
+              $filesToSign += $x86Exe
+          }
+          
+          # 添加x64构建输出
+          $x64Dll = "./src/x64/Release/ExplorerEnhancement.dll"
+          if (Test-Path $x64Dll) {
+              $filesToSign += $x64Dll
+          }
+          
+          $x64Exe = "./src/x64/Release/ExplorerEnhancementManager.exe"
+          if (Test-Path $x64Exe) {
+              $filesToSign += $x64Exe
+          }
+
+          # 签名文件
+          foreach ($file in $filesToSign) {
+              if (Test-Path $file) {
+                  Write-Host "Signing file: $file"
+                  & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "$timestampServer" /v "$file"
+                  if ($LASTEXITCODE -ne 0) {
+                      Write-Warning "Failed to sign file: $file (Exit code: $LASTEXITCODE)"
+                  } else {
+                      Write-Host "Successfully signed: $file"
+                  }
+              } else {
+                  Write-Warning "File not found: $file"
+              }
+          }
+
+    - name: Install NSIS
+      uses: negrutiu/nsis-install@v2
+
+    - name: Build Installer
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: makensis Installer.nsi
+
+    - name: Sign Installer
+      shell: pwsh
+      run: |
+        # 对安装程序进行签名
+        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
+                    Where-Object { $_.DirectoryName -match "\\x64\\" } |
+                    Sort-Object FullName -Descending |
+                    Select-Object -First 1
+
+        if ($signtool -eq $null) {
+            $possiblePaths = @(
+                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
+                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe"
+            )
+
+            foreach ($path in $possiblePaths) {
+                $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) {
+                    $signtool = $found
+                    break
+                }
+            }
+        }
+
+        if ($signtool -eq $null) {
+            throw "Could not find signtool.exe in any known location."
+        } else {
+            $signtoolPath = $signtool.FullName
+            Write-Host "Found signtool at: $signtoolPath"
+        }
+
+        $installerPath = "./ExplorerExtensionSetup.exe"
+        $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"  # 使用与前面相同的路径
+        $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
+
+        if (Test-Path $installerPath) {
+            Write-Host "Signing installer: $installerPath"
+            & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "http://timestamp.digicert.com" /v "$installerPath"
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Failed to sign installer: $installerPath (Exit code: $LASTEXITCODE)"
+            } else {
+                Write-Host "Successfully signed installer: $installerPath"
+            }
+        } else {
+            Write-Warning "Installer not found: $installerPath"
+        }
+
+    - name: Create x86 zip archive
+      shell: pwsh
+      run: |
+        $version = "${{ steps.tag.outputs.VERSION }}"
+        $x86Dir = "src\Release"
+        $x86Zip = "ExplorerEnhancement-x86-$version.zip"
+        
+        if (Test-Path $x86Dir) {
+            # Create a temporary directory with the files
+            $tempDir = "temp_x86"
+            New-Item -ItemType Directory -Path $tempDir -Force
+            
+            # Copy x86 build files
+            Copy-Item "$x86Dir\ExplorerEnhancement.dll" $tempDir
+            Copy-Item "$x86Dir\ExplorerEnhancementManager.exe" $tempDir
+            Copy-Item "$x86Dir\ExplorerEnhancement.exe.manifest" $tempDir -ErrorAction SilentlyContinue
+            
+            # Create the zip file
+            Compress-Archive -Path "$tempDir\*" -DestinationPath $x86Zip -Force
+            
+            # Clean up
+            Remove-Item $tempDir -Recurse -Force
+            
+            Write-Host "Created x86 archive: $x86Zip"
+        } else {
+            Write-Warning "x86 build directory not found: $x86Dir"
+        }
+
+    - name: Create x64 zip archive
+      shell: pwsh
+      run: |
+        $version = "${{ steps.tag.outputs.VERSION }}"
+        $x64Dir = "src\x64\Release"
+        $x64Zip = "ExplorerEnhancement-x64-$version.zip"
+        
+        if (Test-Path $x64Dir) {
+            # Create a temporary directory with the files
+            $tempDir = "temp_x64"
+            New-Item -ItemType Directory -Path $tempDir -Force
+            
+            # Copy x64 build files
+            Copy-Item "$x64Dir\ExplorerEnhancement.dll" $tempDir
+            Copy-Item "$x64Dir\ExplorerEnhancementManager.exe" $tempDir
+            Copy-Item "$x64Dir\ExplorerEnhancement.exe.manifest" $tempDir -ErrorAction SilentlyContinue
+            
+            # Create the zip file
+            Compress-Archive -Path "$tempDir\*" -DestinationPath $x64Zip -Force
+            
+            # Clean up
+            Remove-Item $tempDir -Recurse -Force
+            
+            Write-Host "Created x64 archive: $x64Zip"
+        } else {
+            Write-Warning "x64 build directory not found: $x64Dir"
+        }
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ steps.tag.outputs.TAG_NAME }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset - x86 ZIP
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./ExplorerEnhancement-x86-${{ steps.tag.outputs.VERSION }}.zip
+        asset_name: ExplorerEnhancement-x86-${{ steps.tag.outputs.TAG_NAME }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload Release Asset - x64 ZIP
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./ExplorerEnhancement-x64-${{ steps.tag.outputs.VERSION }}.zip
+        asset_name: ExplorerEnhancement-x64-${{ steps.tag.outputs.TAG_NAME }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload Release Asset - NSIS Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./ExplorerExtensionSetup.exe
+        asset_name: ExplorerExtensionSetup-${{ steps.tag.outputs.TAG_NAME }}.exe
+        asset_content_type: application/vnd.microsoft.portable-executable
