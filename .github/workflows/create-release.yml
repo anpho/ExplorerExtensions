@@ -18,11 +18,12 @@ jobs:
     - name: Get tag name
       id: tag
       run: |
-        echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $env:GITHUB_OUTPUT
+        $tagName = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 1)
+        echo "TAG_NAME=$tagName" >> $env:GITHUB_OUTPUT
         # Extract version number from tag (remove 'v' prefix)
-        $version = "${GITHUB_REF#refs/tags/v}"
+        $version = $tagName.Substring(1)  # Remove 'v' prefix
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-      shell: bash
+      shell: pwsh
 
     - name: Display version info
       run: |
@@ -35,34 +36,34 @@ jobs:
         # Parse version from tag (e.g., v1.0 -> 1,0,0,0 or v1.0.1 -> 1,0,1,0)
         $versionStr = "${{ steps.tag.outputs.VERSION }}"
         $versionParts = $versionStr.Split('.')
-        
+
         # Pad version to 4 parts if needed (e.g., 1.0 becomes 1.0.0.0)
         while ($versionParts.Count -lt 4) {
             $versionParts += "0"
         }
-        
+
         # Create version numbers for FILEVERSION and PRODUCTVERSION
         $fileVersion = $versionParts -join ","
         $productVersion = $versionParts -join ","
-        
+
         # Also update the string values
         $stringVersion = $versionParts -join "."
-        
+
         Write-Host "Updating version to: $stringVersion"
-        
+
         # Read the RC file
         $rcFile = "src\ExplorerEnhancement\ExplorerEnhancement.rc"
         $content = Get-Content $rcFile -Raw
-        
+
         # Replace version info
         $content = $content -replace '(FILEVERSION\s+)\d+,\d+,\d+,\d+', "`${1}$fileVersion"
         $content = $content -replace '(PRODUCTVERSION\s+)\d+,\d+,\d+,\d+', "`${1}$productVersion"
         $content = $content -replace '(VALUE "FileVersion",\s+")\d+\.\d+\.\d+\.\d+(")', "`${1}$stringVersion`${2}"
         $content = $content -replace '(VALUE "ProductVersion",\s+")\d+\.\d+\.\d+\.\d+(")', "`${1}$stringVersion`${2}"
-        
+
         # Write back the updated content
         Set-Content $rcFile $content -Encoding UTF8
-        
+
         Write-Host "Updated version in ExplorerEnhancement.rc"
 
     - name: Add MSBuild to PATH
