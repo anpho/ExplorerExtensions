@@ -9,7 +9,7 @@ permissions:
   contents: write  # 需要写入权限来创建 releases
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
 
     steps:
@@ -290,6 +290,7 @@ jobs:
     - name: Draft Release
       uses: softprops/action-gh-release@v2
       with:
+        generate_release_notes: true
         token: ${{ secrets.TOKEN }}
         files: |
           ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
