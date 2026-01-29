@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v6.0.1
+    - uses: actions/checkout@v6.0.2
 
     - name: Get tag name
       id: tag
@@ -75,7 +75,7 @@ jobs:
 
     - name: Build x86
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: msbuild /m /p:Configuration=Release /p:Platform=Win32 ./src
+      run: msbuild /m /p:Configuration=Release /p:Platform=x86 ./src
 
     - name: Build x64
       working-directory: ${{env.GITHUB_WORKSPACE}}
