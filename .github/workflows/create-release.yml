@@ -286,44 +286,16 @@ jobs:
         } else {
             Write-Warning "x64 build directory not found: $x64Dir"
         }
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
+    
+    - name: Draft Release
+      uses: googleapis/release-please-action@v4
+      id: release
+    
+    - name: Upload Release Artifact
+      if: ${{ steps.release.outputs.release_created }}
+      env: 
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ steps.tag.outputs.TAG_NAME }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Asset - x86 ZIP
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
-        asset_name: anpho'sExtensions-x86-${{ steps.tag.outputs.TAG_NAME }}.zip
-        asset_content_type: application/zip
-
-    - name: Upload Release Asset - x64 ZIP
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./Extensions-x64-${{ steps.tag.outputs.VERSION }}.zip
-        asset_name: anpho'sExtensions-x64-${{ steps.tag.outputs.TAG_NAME }}.zip
-        asset_content_type: application/zip
-
-    - name: Upload Release Asset - NSIS Installer
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./ExplorerExtensionSetup.exe
-        asset_name: ExplorerExtensionSetup-${{ steps.tag.outputs.TAG_NAME }}.exe
-        asset_content_type: application/vnd.microsoft.portable-executable
+      run: |
+        gh release upload ${{ steps.release.outputs.tag_name }} ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
+        gh release upload ${{ steps.release.outputs.tag_name }} ./Extensions-x64-${{ steps.tag.outputs.VERSION }}.zip
+        gh release upload ${{ steps.release.outputs.tag_name }} ./ExplorerExtensionSetup.exe
