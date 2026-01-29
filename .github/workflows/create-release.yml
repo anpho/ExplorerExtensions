@@ -70,15 +70,15 @@ jobs:
       uses: microsoft/setup-msbuild@v2
 
     - name: Restore NuGet packages
-      working-directory: ${{env.GITHUB_WORKSPACE}}
+      working-directory: ${{ github.workspace }}
       run: nuget restore ./src
 
     - name: Build x86
-      working-directory: ${{env.GITHUB_WORKSPACE}}
+      working-directory: ${{ github.workspace }}
       run: msbuild /m /p:Configuration=Release /p:Platform=x86 ./src
 
     - name: Build x64
-      working-directory: ${{env.GITHUB_WORKSPACE}}
+      working-directory: ${{ github.workspace }}
       run: msbuild /m /p:Configuration=Release /p:Platform=x64 ./src
 
     - name: sign
@@ -143,23 +143,23 @@ jobs:
           $filesToSign = @()
           
           # 添加x86构建输出
-          $x86Dll = "./src/Release/ExplorerEnhancement.dll"
+          $x86Dll = "./src/build/ExplorerEnhancement_x86.dll"
           if (Test-Path $x86Dll) {
               $filesToSign += $x86Dll
           }
           
-          $x86Exe = "./src/Release/ExplorerEnhancementManager.exe"
+          $x86Exe = "./src/build/ExplorerEnhancementManager_x86.exe"
           if (Test-Path $x86Exe) {
               $filesToSign += $x86Exe
           }
           
           # 添加x64构建输出
-          $x64Dll = "./src/x64/Release/ExplorerEnhancement.dll"
+          $x64Dll = "./src/build/ExplorerEnhancement_x64.dll"
           if (Test-Path $x64Dll) {
               $filesToSign += $x64Dll
           }
           
-          $x64Exe = "./src/x64/Release/ExplorerEnhancementManager.exe"
+          $x64Exe = "./src/build/ExplorerEnhancementManager_x64.exe"
           if (Test-Path $x64Exe) {
               $filesToSign += $x64Exe
           }
@@ -183,7 +183,7 @@ jobs:
       uses: negrutiu/nsis-install@v2
 
     - name: Build Installer
-      working-directory: ${{env.GITHUB_WORKSPACE}}
+      working-directory: ${{github.workspace}}
       run: makensis Installer.nsi
 
     - name: Sign Installer
@@ -237,8 +237,8 @@ jobs:
       shell: pwsh
       run: |
         $version = "${{ steps.tag.outputs.VERSION }}"
-        $x86Dir = "src\Release"
-        $x86Zip = "ExplorerEnhancement-x86-$version.zip"
+        $x86Dir = "./src/build/"
+        $x86Zip = "Extensions-x86-$version.zip"
         
         if (Test-Path $x86Dir) {
             # Create a temporary directory with the files
@@ -246,9 +246,8 @@ jobs:
             New-Item -ItemType Directory -Path $tempDir -Force
             
             # Copy x86 build files
-            Copy-Item "$x86Dir\ExplorerEnhancement.dll" $tempDir
-            Copy-Item "$x86Dir\ExplorerEnhancementManager.exe" $tempDir
-            Copy-Item "$x86Dir\ExplorerEnhancement.exe.manifest" $tempDir -ErrorAction SilentlyContinue
+            Copy-Item "$x86Dir/ExplorerEnhancement_x86.dll" $tempDir
+            Copy-Item "$x86Dir/ExplorerEnhancementManager_x86.exe" $tempDir
             
             # Create the zip file
             Compress-Archive -Path "$tempDir\*" -DestinationPath $x86Zip -Force
@@ -265,8 +264,8 @@ jobs:
       shell: pwsh
       run: |
         $version = "${{ steps.tag.outputs.VERSION }}"
-        $x64Dir = "src\x64\Release"
-        $x64Zip = "ExplorerEnhancement-x64-$version.zip"
+        $x64Dir = "src/build"
+        $x64Zip = "Extensions-x64-$version.zip"
         
         if (Test-Path $x64Dir) {
             # Create a temporary directory with the files
@@ -274,9 +273,8 @@ jobs:
             New-Item -ItemType Directory -Path $tempDir -Force
             
             # Copy x64 build files
-            Copy-Item "$x64Dir\ExplorerEnhancement.dll" $tempDir
-            Copy-Item "$x64Dir\ExplorerEnhancementManager.exe" $tempDir
-            Copy-Item "$x64Dir\ExplorerEnhancement.exe.manifest" $tempDir -ErrorAction SilentlyContinue
+            Copy-Item "$x64Dir\ExplorerEnhancement_x64.dll" $tempDir
+            Copy-Item "$x64Dir\ExplorerEnhancementManager_x64.exe" $tempDir
             
             # Create the zip file
             Compress-Archive -Path "$tempDir\*" -DestinationPath $x64Zip -Force
@@ -306,8 +304,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./ExplorerEnhancement-x86-${{ steps.tag.outputs.VERSION }}.zip
-        asset_name: ExplorerEnhancement-x86-${{ steps.tag.outputs.TAG_NAME }}.zip
+        asset_path: ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
+        asset_name: anpho'sExtensions-x86-${{ steps.tag.outputs.TAG_NAME }}.zip
         asset_content_type: application/zip
 
     - name: Upload Release Asset - x64 ZIP
@@ -316,8 +314,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./ExplorerEnhancement-x64-${{ steps.tag.outputs.VERSION }}.zip
-        asset_name: ExplorerEnhancement-x64-${{ steps.tag.outputs.TAG_NAME }}.zip
+        asset_path: ./Extensions-x64-${{ steps.tag.outputs.VERSION }}.zip
+        asset_name: anpho'sExtensions-x64-${{ steps.tag.outputs.TAG_NAME }}.zip
         asset_content_type: application/zip
 
     - name: Upload Release Asset - NSIS Installer

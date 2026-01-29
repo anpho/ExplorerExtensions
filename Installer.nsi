@@ -7,9 +7,11 @@ OutFile "ExplorerExtensionSetup.exe"
 
 RequestExecutionLevel user
 
-!define VERSION "26.1.15"
+!include "x64.nsh"
+
+!define VERSION "2026.1.29"
 !define PRODUCT_NAME "anpho's Extensions"
-!define COPYRIGHT "x.com/anpho"
+!define COPYRIGHT "https://x.com/anpho"
 
 VIProductVersion "${VERSION}.0"
 VIFileVersion "${VERSION}.0"
@@ -18,6 +20,7 @@ VIAddVersionKey "CompanyName" "anpho"
 VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
 VIAddVersionKey "FileDescription" "Windows Explorer Context Menu Extension"
 VIAddVersionKey "ProductVersion" "${VERSION}"
+VIAddVersionKey "FileVersion" "${VERSION}.0" 
 
 InstallDir $LOCALAPPDATA\ExplorerEnhancement
 
@@ -33,50 +36,29 @@ UninstPage InstFiles
 Section "Main Section" SEC01
 
     SetOutPath $INSTDIR
-    StrCmp $PROCESSOR_ARCHITECTURE "x86" arch_x86 arch_x64
+    CreateDirectory "$SMPROGRAMS\anpho's Extensions"
 
-    arch_x86:
-        IfFileExists "$INSTDIR\ExplorerEnhancement_x86.dll" 0 skip_unreg_x86
-            ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
-        skip_unreg_x86:
-        File "src\build\ExplorerEnhancement_x86.dll"
-        File "src\build\ExplorerEnhancementManager_x86.exe"
-        Goto arch_end
-
-    arch_x64:
+    ${If} ${RunningX64}
         IfFileExists "$INSTDIR\ExplorerEnhancement_x64.dll" 0 skip_unreg_x64
             ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
         skip_unreg_x64:
         File "src\build\ExplorerEnhancement_x64.dll"
         File "src\build\ExplorerEnhancementManager_x64.exe"
-
-    arch_end:
-
-    StrCmp $PROCESSOR_ARCHITECTURE "x86" reg_x86 reg_x64
-
-    reg_x86:
-        ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x86.dll'
-        Goto reg_end
-
-    reg_x64:
         ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x64.dll'
-
-    reg_end:
-
-
-    CreateDirectory "$SMPROGRAMS\anpho's Extensions"
-    StrCmp $PROCESSOR_ARCHITECTURE "x86" shortcut_x86 shortcut_x64
-
-    shortcut_x86:
-        CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
-        Goto shortcut_end
-
-    shortcut_x64:
         CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
 
-    shortcut_end:
-    CreateShortcut "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk" "$INSTDIR\uninstall.exe"
+    ${Else}
+        IfFileExists "$INSTDIR\ExplorerEnhancement_x86.dll" 0 skip_unreg_x86
+            ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
+        skip_unreg_x86:
+        File "src\build\ExplorerEnhancement_x86.dll"
+        File "src\build\ExplorerEnhancementManager_x86.exe"
+        ExecWait '$SYSDIR\regsvr32.exe /s $INSTDIR\ExplorerEnhancement_x86.dll'
+        CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
 
+    ${EndIf}
+
+    CreateShortcut "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk" "$INSTDIR\uninstall.exe"
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
     WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "DisplayName" "${PRODUCT_NAME}"
@@ -94,21 +76,17 @@ Section "Main Section" SEC01
 SectionEnd
 
 Section "Uninstall"
-    StrCmp $PROCESSOR_ARCHITECTURE "x86" unreg_x86 unreg_x64
 
-    unreg_x86:
-        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
-        Delete "$INSTDIR\ExplorerEnhancement_x86.dll"
-        Delete "$INSTDIR\ExplorerEnhancementManager_x86.exe"
-        Goto unreg_end
-
-    unreg_x64:
+    ${If} ${RunningX64}
         ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x64.dll'
         Delete "$INSTDIR\ExplorerEnhancement_x64.dll"
         Delete "$INSTDIR\ExplorerEnhancementManager_x64.exe"
-
-    unreg_end:
-
+    ${Else}
+        ExecWait '$SYSDIR\regsvr32.exe /s /u $INSTDIR\ExplorerEnhancement_x86.dll'
+        Delete "$INSTDIR\ExplorerEnhancement_x86.dll"
+        Delete "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+    ${EndIf}
+    
     Delete "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk"
     Delete "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk"
     RMDir "$SMPROGRAMS\anpho's Extensions"
@@ -119,19 +97,15 @@ Section "Uninstall"
 
     RMDir "$INSTDIR"
 
-    MessageBox MB_ICONINFORMATION "Windows Explorer Extension has been successfully uninstalled.Please restart Windows Explorer or your computer for the changes to take effect."
+    MessageBox MB_ICONINFORMATION "anpho's Extensions has been successfully uninstalled.Please restart Windows Explorer or your computer for the changes to take effect."
 SectionEnd
 
 Function .onInstSuccess
 
-    StrCmp $PROCESSOR_ARCHITECTURE "x86" start_x86 start_x64
-    
-    start_x86:
-        ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
-        Goto start_end
-    
-    start_x64:
+    ${If} ${RunningX64}  
         ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x64.exe"
-    
-    start_end:
+    ${Else}
+        ExecShell "open" "$INSTDIR\ExplorerEnhancementManager_x86.exe"
+    ${EndIf}
+        
 FunctionEnd
