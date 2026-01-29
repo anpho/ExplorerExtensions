@@ -288,14 +288,10 @@ jobs:
         }
     
     - name: Draft Release
-      uses: googleapis/release-please-action@v4
-      id: release
-    
-    - name: Upload Release Artifact
-      if: ${{ steps.release.outputs.release_created }}
-      env: 
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      run: |
-        gh release upload ${{ steps.release.outputs.tag_name }} ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
-        gh release upload ${{ steps.release.outputs.tag_name }} ./Extensions-x64-${{ steps.tag.outputs.VERSION }}.zip
-        gh release upload ${{ steps.release.outputs.tag_name }} ./ExplorerExtensionSetup.exe
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.TOKEN }}
+        files: |
+          ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
+          ./Extensions-x64-${{ steps.tag.outputs.VERSION }}.zip
+          ./ExplorerExtensionSetup.exe
