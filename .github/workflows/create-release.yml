@@ -288,11 +288,6 @@ jobs:
         }
     
     - name: Draft Release
-      uses: softprops/action-gh-release@v2
+      uses: ncipollo/release-action@v1
       with:
-        generate_release_notes: true
-        token: ${{ secrets.TOKEN }}
-        files: |
-          ./Extensions-x86-${{ steps.tag.outputs.VERSION }}.zip
-          ./Extensions-x64-${{ steps.tag.outputs.VERSION }}.zip
-          ./ExplorerExtensionSetup.exe
+        artifacts: "Extensions-*.zip,ExplorerExtensionSetup.exe"
