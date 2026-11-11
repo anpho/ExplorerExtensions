@@ -1,14 +1,14 @@
 #include "pch.h"
 #include "AboutDialog.h"
+#include "../Common/LocalizedString.h"
 
 LRESULT CAboutDialog::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
 {
     CenterWindow();
 
-    CString strTitle, strOk, strDescription;
-    strTitle.LoadString(IDS_ABOUT_TITLE);
-    strOk.LoadString(IDS_OK_BUTTON);
-    strDescription.LoadString(IDS_ABOUT_DESCRIPTION);
+    CString strTitle = LoadLocalizedString(IDS_ABOUT_TITLE);
+    CString strOk = LoadLocalizedString(IDS_OK_BUTTON);
+    CString strDescription = LoadLocalizedString(IDS_ABOUT_DESCRIPTION);
 
     SetWindowText(strTitle);
     SetDlgItemText(IDOK, strOk);

@@ -18,6 +18,13 @@ public:
         COMMAND_ID_HANDLER(IDCANCEL, OnCancelCommand)
     END_MSG_MAP()
 
+    // 打开对话框前告诉它当前注册范围/是否可修改。
+    void Configure(InstallScope scope, bool canModify)
+    {
+        m_scope = scope;
+        m_canModify = canModify;
+    }
+
     LRESULT OnInitDialog(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
     LRESULT OnClose(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
     LRESULT OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
@@ -28,8 +35,13 @@ public:
 
 private:
     CRegistryHelper m_registryHelper;
-    bool m_installed = false;
+    InstallScope m_scope = InstallScope::None;
+    bool m_canModify = false;
 
+    bool MachineScope() const { return m_scope == InstallScope::Machine; }
+
+    void CloseWithOptionalUnregister();
+    void UnregisterOnExit();
     void UpdateUI();
     void ApplyChanges();
 };

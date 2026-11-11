@@ -1,4 +1,4 @@
-﻿// BreakFolderExt.h: CBreakFolderExt 的声明
+// BreakFolderExt.h: CBreakFolderExt 的声明
 // 功能：Windows资源管理器扩展，用于将选中文件夹中的文件移动到父文件夹
 // 支持：本地路径、UNC路径、SAMBA路径等网络路径 
 
@@ -9,6 +9,8 @@
 #include <atlstr.h>
 
 #include "ExplorerEnhancement_i.h"
+
+#include "../Common/LocalizedString.h"
 
 using namespace ATL;
 
@@ -27,14 +29,13 @@ public:
 	/// </summary>
 	CBreakFolderExt()
 	{
-		(m_contextMenuName.LoadStringW(IDS_MENU_BREAKFOLDERS)); // 加载上下文菜单名称
+		m_contextMenuName = LoadLocalizedString(IDS_MENU_BREAKFOLDERS, L"Break Folders +");
 		if (!m_hBitmap)
 		{
 			loadIcon(); // 加载图标
 		}
 	}
 
-	DECLARE_REGISTRY_RESOURCEID(107)
 	DECLARE_NOT_AGGREGATABLE(CBreakFolderExt)
 
 	BEGIN_COM_MAP(CBreakFolderExt)
@@ -42,6 +43,12 @@ public:
 	COM_INTERFACE_ENTRY(IShellExtInit)
 	COM_INTERFACE_ENTRY(IContextMenu)
 	END_COM_MAP()
+
+	// 注册由 DllRegisterServer/DllInstall 直接写注册表，不使用 ATL 的注册资源。
+	static HRESULT WINAPI UpdateRegistry(BOOL /*bRegister*/) throw()
+	{
+		return S_OK;
+	}
 
 	DECLARE_PROTECT_FINAL_CONSTRUCT()
 

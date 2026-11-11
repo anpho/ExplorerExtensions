@@ -17,6 +17,7 @@ WTL 10 is vendored in the repository (`src\third_party\wtl`).
 
 - `src\ExplorerEnhancement` - the shell extension DLL project (**New Folder +** and **Break Folders +**).
 - `src\ExplorerEnhancementManager` - the manager app; it also handles `/install` and `/uninstall`.
+- `src\Common` - small header shared by both projects (loads UI strings in the user's language).
 - `src\third_party\wtl` - WTL 10 headers, vendored. Licensed under the Microsoft Public License; see `src\third_party\wtl\MS-PL.txt`.
 - `src\version.h` - the single source of the product version (`APP_VER_*` macros and `APP_VER_STRING`).
 - `Installer.nsi` - the NSIS installer script.
@@ -53,7 +54,7 @@ The installer is written to `ExplorerExtensionSetup.exe` in the repository root.
 ## Test a local build
 
 1. Build the Release configuration for your Windows architecture.
-2. Register the extension with the manager. It registers the DLL that sits next to it:
+2. Register the extension with the manager. It registers the DLL that sits next to it. Run it normally for a per-user registration, or from an elevated prompt to register for all users (`HKLM`):
 
 ```bat
 src\build\ExplorerEnhancementManager_x64.exe /install
@@ -61,7 +62,7 @@ src\build\ExplorerEnhancementManager_x64.exe /install
 
 Use `ExplorerEnhancementManager_x86.exe` on 32-bit Windows. The exit code is `0` on success and `1` on failure.
 
-3. Restart Windows Explorer.
+3. Restart Windows Explorer. If a previous version of the DLL is already loaded by Explorer, close/restart Explorer before replacing or rebuilding it, otherwise the file is locked.
 4. Test both commands on files and folders.
 5. Unregister when you are done, then restart Windows Explorer again:
 
@@ -69,7 +70,9 @@ Use `ExplorerEnhancementManager_x86.exe` on 32-bit Windows. The exit code is `0`
 src\build\ExplorerEnhancementManager_x64.exe /uninstall
 ```
 
-You can also register the DLL with `regsvr32` as a normal (non-admin) user: `regsvr32 src\build\ExplorerEnhancement_x64.dll`.
+You can also register the DLL with `regsvr32` as a normal (non-admin) user: `regsvr32 src\build\ExplorerEnhancement_x64.dll`. For an all-users registration use `regsvr32 /i:machine` from an elevated prompt.
+
+If registration fails, the manager writes the failing key and error code to `%LOCALAPPDATA%\ExplorerEnhancement\manager.log`.
 
 ## Version numbers
 
@@ -96,6 +99,7 @@ Releases are built and signed by GitHub Actions.
 
 - `.github/workflows/msbuild.yml` builds every push and pull request. It does not sign or publish anything.
 - `.github/workflows/create-release.yml` runs when a tag is pushed. It validates the tag and derives the four-part version, overwrites `src\version.h`, builds Release x86 and x64, signs the binaries, builds the installer and the two zips, and publishes the GitHub release with the artifacts.
+- Both workflows run on the `windows-2022` runner image (Visual Studio 2022, v143 toolset with ATL). `windows-latest` currently points to the Visual Studio 2026 image, where the v143 toolset is installed for compatibility without ATL headers, so the build fails with `atlbase.h` not found. If you migrate to VS 2026, change the runner image and the project toolset together.
 
 Signing requirements (repository secrets):
 

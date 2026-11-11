@@ -28,13 +28,21 @@
 #define IDS_INFO_RESTART_EXPLORER       212
 #define IDS_NOT_REGISTERED              213
 #define IDS_ERROR_APPLY                 214
+#define IDS_MACHINE_READONLY            215
+#define IDS_REGISTER_FAILED             216
+#define IDS_USER_REG_DENIED_ASK         217
+#define IDS_RESTART_ELEVATED_ASK        218
+#define IDS_CONFIRM_UNREGISTER          219
+#define IDS_UNREGISTER_OK               220
+#define IDS_UNREGISTER_FAILED           221
+#define IDS_UNREGISTER_NEED_ADMIN       222
 
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        215
+#define _APS_NEXT_RESOURCE_VALUE        223
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1009
 #define _APS_NEXT_SYMED_VALUE           101

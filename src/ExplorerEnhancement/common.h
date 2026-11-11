@@ -1,5 +1,32 @@
-﻿#pragma once
+#pragma once
 #include "pch.h"
+
+// 启用状态由管理器写入注册表；未写入时默认启用。
+// 计算机范围（HKLM）优先于当前用户（HKCU）。
+constexpr auto M_REG_BASEKEY = L"Software\\anpho\\ExplorerEnhancement";
+constexpr auto M_REG_ENABLE_NEWFOLDER = L"EnableNewFolderPlus";
+constexpr auto M_REG_ENABLE_BREAKFOLDER = L"EnableBreakFolderPlus";
+
+inline bool ReadEnabledValue(HKEY root, LPCWSTR valueName, DWORD& enabled)
+{
+    DWORD size = sizeof(enabled);
+    return ::RegGetValueW(root, M_REG_BASEKEY, valueName, RRF_RT_REG_DWORD,
+                          nullptr, &enabled, &size) == ERROR_SUCCESS;
+}
+
+inline bool IsExtensionEnabled(LPCWSTR valueName)
+{
+    DWORD enabled = 0;
+    if (ReadEnabledValue(HKEY_LOCAL_MACHINE, valueName, enabled))
+    {
+        return enabled != 0;
+    }
+    if (ReadEnabledValue(HKEY_CURRENT_USER, valueName, enabled))
+    {
+        return enabled != 0;
+    }
+    return true;
+}
 
 // 显示文件操作错误：context 说明 + HRESULT 的系统描述 + 十六进制错误码
 inline void ShowOperationError(HWND hwnd, HRESULT hr, LPCWSTR context)

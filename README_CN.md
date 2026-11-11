@@ -51,9 +51,10 @@ anpho's Extensions 为 Windows 资源管理器右键菜单添加两个命令：*
 ### 使用安装程序（推荐）
 
 1. 从 [Releases](https://github.com/anpho/ExplorerExtensions/releases) 下载 `ExplorerExtensionSetup.exe`。
-2. 运行安装程序。无需管理员权限。
-3. 安装程序会把文件复制到 `%LOCALAPPDATA%\ExplorerEnhancement`，注册扩展，为管理器创建开始菜单快捷方式，并写入卸载条目。
-4. 安装程序会注册扩展并打开管理器。如果右键菜单没有出现，请重启 Windows 资源管理器。
+2. 运行安装程序。无需管理员权限；扩展会安装并注册给当前用户。
+3. 如果要给所有用户安装，请以管理员身份运行安装程序。此时扩展注册在 `HKLM`，设置由所有用户共享。
+4. 安装程序会把文件复制到 `%LOCALAPPDATA%\ExplorerEnhancement`，注册扩展，为管理器创建开始菜单快捷方式，并写入卸载条目。
+5. 如果右键菜单没有出现，请重启 Windows 资源管理器。
 
 ### 手动安装
 
@@ -79,15 +80,20 @@ regsvr32 ExplorerEnhancement_x64.dll
 
 - 注册是按用户进行的，请使用之后要使用右键菜单的同一用户运行 `regsvr32`。
 - 使用 `regsvr32 /u ExplorerEnhancement_<arch>.dll` 注销。
+- 如果要给所有用户注册，请从管理员命令提示符运行管理器的 `/install`（或 `regsvr32 /i:machine`）；卸载请用管理员运行 `/uninstall`。
 - 手动安装不会创建开始菜单快捷方式，也不会写入卸载条目。
 
 ## 启用或禁用命令
 
 安装程序会为管理器创建开始菜单快捷方式。也可以从安装目录运行 `ExplorerEnhancementManager_<arch>.exe`。管理器中有 **摊开文件夹+** 和 **新建文件夹+** 两个复选框，以及 **应用**、**关于** 和 **退出** 按钮。
 
-- 被禁用的命令按用户记录在 `HKCU\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked`。
-- 应用修改后需要重启 Windows 资源管理器。
-- 如果扩展没有注册（例如只复制了 DLL，或手动注销过），管理器会给出提示并禁用 **应用**。
+- 扩展未注册时直接打开管理器会自动注册：普通权限注册给当前用户，管理员权限注册给所有用户。
+- 如果 Windows 禁止普通用户写入用户级 COM 注册（`HKCU\Software\Classes\CLSID` 被加固，错误 5），管理器会询问并弹出 UAC，改为按“所有用户”安装；取消 UAC 则保持未注册。
+- 如果扩展是按“所有用户”安装的，管理器会询问是否以管理员身份重新启动自己，以便修改开关；拒绝时窗口为只读，**应用** 被禁用。
+- 通过 UAC 协助安装完成后，管理器会自动以管理员身份重启，不会再停在灰掉的窗口上。
+- **按住 Shift 点“退出”**（或按住 Shift 关闭窗口）会在确认后注销扩展。注销“所有用户”范围的注册需要以管理员身份运行管理器。
+- 被禁用的命令按用户或按计算机记录在 `HKCU`/`HKLM` 的 `\Software\anpho\ExplorerEnhancement`（每次打开右键菜单时由 DLL 检查）。
+- 如果已打开的 Explorer 窗口没有变化，请重启 Windows 资源管理器。
 
 管理器也支持命令行：
 
@@ -100,7 +106,7 @@ regsvr32 ExplorerEnhancement_x64.dll
 
 - 打开 **设置 > 应用**，找到 **anpho's Extensions**，点击 **卸载**。
 - 或运行 `%LOCALAPPDATA%\ExplorerEnhancement\uninstall.exe`。
-- 卸载程序会用 `/uninstall` 调用管理器，然后删除文件、开始菜单快捷方式、卸载条目，以及按用户的注册信息和禁用记录。
+- 卸载程序会用 `/uninstall` 调用管理器，然后删除文件、开始菜单快捷方式、卸载条目，以及按用户的注册信息和设置。
 - 静默卸载：`uninstall.exe /S`。
 - 卸载后重启 Windows 资源管理器。
 

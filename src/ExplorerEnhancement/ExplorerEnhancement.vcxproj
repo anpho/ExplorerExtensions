@@ -131,6 +131,7 @@
       <ProxyFileName>ExplorerEnhancement_p.c</ProxyFileName>
       <GenerateStublessProxies>true</GenerateStublessProxies>
       <TypeLibraryName>$(IntDir)ExplorerEnhancement.tlb</TypeLibraryName>
+      <DllDataFileName>$(IntDir)dlldata.c</DllDataFileName>
       <ValidateAllParameters>true</ValidateAllParameters>
     </Midl>
     <ResourceCompile>
@@ -174,6 +175,7 @@
       <ProxyFileName>ExplorerEnhancement_p.c</ProxyFileName>
       <GenerateStublessProxies>true</GenerateStublessProxies>
       <TypeLibraryName>$(IntDir)ExplorerEnhancement.tlb</TypeLibraryName>
+      <DllDataFileName>$(IntDir)dlldata.c</DllDataFileName>
       <ValidateAllParameters>true</ValidateAllParameters>
     </Midl>
     <ResourceCompile>
@@ -218,6 +220,7 @@
       <ProxyFileName>ExplorerEnhancement_p.c</ProxyFileName>
       <GenerateStublessProxies>true</GenerateStublessProxies>
       <TypeLibraryName>$(IntDir)ExplorerEnhancement.tlb</TypeLibraryName>
+      <DllDataFileName>$(IntDir)dlldata.c</DllDataFileName>
       <ValidateAllParameters>true</ValidateAllParameters>
     </Midl>
     <ResourceCompile>
@@ -265,6 +268,7 @@
       <ProxyFileName>ExplorerEnhancement_p.c</ProxyFileName>
       <GenerateStublessProxies>true</GenerateStublessProxies>
       <TypeLibraryName>$(IntDir)ExplorerEnhancement.tlb</TypeLibraryName>
+      <DllDataFileName>$(IntDir)dlldata.c</DllDataFileName>
       <ValidateAllParameters>true</ValidateAllParameters>
     </Midl>
     <ResourceCompile>
@@ -343,9 +347,7 @@
     <ResourceCompile Include="ExplorerEnhancement.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="BreakFolderExt.rgs" />
     <None Include="ExplorerEnhancement.def" />
-    <None Include="NewFolderExt.rgs" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="ExplorerEnhancement.idl" />

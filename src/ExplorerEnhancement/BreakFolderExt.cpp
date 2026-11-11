@@ -16,6 +16,12 @@
  */
 HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDataObject *pdtobj, HKEY hkeyProgID)
 {
+	// 管理器的“启用”开关：停用时返回失败，右键菜单不显示
+	if (!IsExtensionEnabled(M_REG_ENABLE_BREAKFOLDER))
+	{
+		return E_INVALIDARG;
+	}
+
 	// 输入验证
 	if (!pdtobj)
 	{
@@ -26,9 +32,14 @@ HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDat
 
 	CComPtr<IShellItemArray> items;
 	HRESULT hr = SHCreateShellItemArrayFromDataObject(pdtobj, IID_PPV_ARGS(&items));
-	if (FAILED(hr))
+	if (FAILED(hr) || !items)
 	{
-		return hr;
+		// 某些宿主视图下拿不到数组，兜底直接查询一次
+		hr = pdtobj->QueryInterface(IID_PPV_ARGS(&items));
+		if (FAILED(hr) || !items)
+		{
+			return hr;
+		}
 	}
 
 	// 获取选中文件的数量
@@ -51,12 +62,8 @@ HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDat
 
 		SFGAOF sfgaoFlags = SFGAO_FOLDER;
 		hr = cur_item->GetAttributes(SFGAO_FOLDER, &sfgaoFlags);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-
-		if (sfgaoFlags & SFGAO_FOLDER)
+		// 取属性失败时也按文件夹处理：本扩展只注册在 Directory 上
+		if (FAILED(hr) || (sfgaoFlags & SFGAO_FOLDER))
 		{
 			m_folders.push_back(cur_item);
 		}
@@ -203,6 +210,7 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 
 	HRESULT move_hr = S_OK;
 	UINT failed_count = 0;
+	UINT queued_count = 0;
 
 	// 每个文件夹的目标是它自己的父目录，多选不同目录时也正确
 	for (const auto &folder : m_folders)
@@ -272,7 +280,17 @@ HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 				}
 				failed_count++;
 			}
+			else
+			{
+				queued_count++;
+			}
 		}
+	}
+
+	// 没有文件可移动时不做空操作（空 IFileOperation 会报错并弹窗）
+	if (queued_count == 0 && failed_count == 0)
+	{
+		return S_OK;
 	}
 
 	// 执行所有文件操作

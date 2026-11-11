@@ -1,11 +1,9 @@
-﻿//{{NO_DEPENDENCIES}}
+//{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ 生成的包含文件。
 // 供 ExplorerEnhancement.rc 使用
 //
 #define IDS_MENUITEM                    101
 #define IDS_MENU_BREAKFOLDERS           102
-#define IDR_NEWFOLDEREXT                106
-#define IDR_BREAKFOLDEREXT              107
 
 // Next default values for new objects
 // 

@@ -30,6 +30,7 @@ RequestExecutionLevel user
 !define COPYRIGHT "https://x.com/anpho"
 !define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anpho's Extensions"
 !define BLOCKED_KEY "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked"
+!define SETTINGS_KEY "Software\anpho\ExplorerEnhancement"
 !define CLSID_NEWFOLDER "{c36a65af-0a1e-4e09-9729-6da3e4e4461a}"
 !define CLSID_BREAKFOLDER "{f2a0aaf9-2961-4465-a843-884383fcd13b}"
 
@@ -103,11 +104,16 @@ Section "Install" SEC01
     ${If} $0 != 0
         ${IfNot} ${Silent}
             MessageBox MB_ICONSTOP \
-                "DLL registration failed. The extension was copied to $INSTDIR but is not registered. Try running $INSTDIR\$ExeName /install."
+                "DLL registration failed. The extension was copied to $INSTDIR but is not registered.$\r$\n$\r$\nIf Windows blocks per-user COM registration, run the installer as administrator to install for all users, or run $INSTDIR\$ExeName as administrator."
         ${EndIf}
         SetErrorLevel 2
         Abort
     ${EndIf}
+
+    ; Drop Blocked entries written by older manager versions; enable/disable is
+    ; now stored in HKCU\Software\anpho\ExplorerEnhancement.
+    DeleteRegValue HKCU "${BLOCKED_KEY}" "${CLSID_NEWFOLDER}"
+    DeleteRegValue HKCU "${BLOCKED_KEY}" "${CLSID_BREAKFOLDER}"
 
     CreateDirectory "$SMPROGRAMS\anpho's Extensions"
     CreateShortcut "$SMPROGRAMS\anpho's Extensions\anpho's Extensions Manager.lnk" "$INSTDIR\$ExeName"
@@ -146,7 +152,7 @@ Section "Uninstall"
         ${If} $0 != 0
             ${IfNot} ${Silent}
                 MessageBox MB_ICONEXCLAMATION \
-                    "Could not remove the DLL registration (exit code $0). You may need to reinstall and uninstall again."
+                    "Could not remove the DLL registration (exit code $0). If the extension was installed for all users, run this uninstaller as administrator."
             ${EndIf}
         ${EndIf}
     skip_unregister:
@@ -168,7 +174,10 @@ Section "Uninstall"
     Delete "$SMPROGRAMS\anpho's Extensions\Uninstall.lnk"
     RMDir "$SMPROGRAMS\anpho's Extensions"
 
-    ; Remove the per-user disabled state written by the manager.
+    ; Remove the manager's enabled/disabled state (and stale Blocked values
+    ; written by older versions).
+    DeleteRegKey HKCU "${SETTINGS_KEY}"
+    DeleteRegKey HKLM "${SETTINGS_KEY}"
     DeleteRegValue HKCU "${BLOCKED_KEY}" "${CLSID_NEWFOLDER}"
     DeleteRegValue HKCU "${BLOCKED_KEY}" "${CLSID_BREAKFOLDER}"
     DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"

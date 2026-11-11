@@ -47,9 +47,10 @@ Select one or more folders, right-click, and choose **Break Folders +**.
 ### Installer (recommended)
 
 1. Download `ExplorerExtensionSetup.exe` from [Releases](https://github.com/anpho/ExplorerExtensions/releases).
-2. Run it. No administrator rights are needed.
-3. The installer copies the files to `%LOCALAPPDATA%\ExplorerEnhancement`, registers the extension, adds a Start Menu shortcut for the manager, and writes an uninstall entry.
-4. The installer registers the extension and opens the manager. If the commands do not appear, restart Windows Explorer.
+2. Run it. No administrator rights are needed; the extension is installed and registered for the current user.
+3. To install for all users, run the installer as administrator. The extension is then registered in `HKLM` and its settings are shared by every user.
+4. The installer copies the files to `%LOCALAPPDATA%\ExplorerEnhancement`, registers the extension, adds a Start Menu shortcut for the manager, and writes an uninstall entry.
+5. If the commands do not appear, restart Windows Explorer.
 
 ### Manual installation
 
@@ -75,15 +76,20 @@ Notes:
 
 - Registration is per user, so run `regsvr32` as the same user who will use the menu.
 - Use `regsvr32 /u ExplorerEnhancement_<arch>.dll` to unregister.
+- For all users, run the manager with `/install` from an elevated prompt (or `regsvr32 /i:machine`); unregister with `/uninstall` from an elevated prompt.
 - A manual installation creates no Start Menu shortcut and no uninstall entry.
 
 ## Enable or disable the commands
 
 The installer adds a Start Menu shortcut for the manager. You can also start `ExplorerEnhancementManager_<arch>.exe` from the install folder. The manager has two checkboxes, **Break Folders +** and **New Folder +**, plus **Apply**, **About** and **Exit**.
 
-- A disabled command is blocked per user in `HKCU\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked`.
-- Restart Windows Explorer after applying changes.
-- If the extension is not registered (for example, only the DLL was copied, or it was manually unregistered), the manager says so and disables **Apply**.
+- Opening the manager when the extension is not registered registers it automatically: for the current user normally, for all users when the manager is run as administrator.
+- On Windows versions that block per-user COM registration (`HKCU\Software\Classes\CLSID` is hardened, error 5), the manager asks for UAC and installs for all users instead. Declining UAC leaves the extension unregistered.
+- If the extension is registered for all users (installed as administrator), the manager offers to restart itself with administrator rights so the settings can be changed. If you decline, the window is read-only and **Apply** is disabled.
+- After a UAC-assisted installation the manager restarts itself elevated automatically, so you get a usable window instead of a greyed-out one.
+- **Shift+click Exit** (or Shift+close the window) unregisters the extension after a confirmation. Removing an all-users registration requires running the manager as administrator.
+- A disabled command is recorded per user or per machine in `HKCU`/`HKLM` `\Software\anpho\ExplorerEnhancement` (the DLL checks it each time the menu opens).
+- If the change does not show up in an already-open Explorer window, restart Windows Explorer.
 
 The manager also has a command-line mode:
 
@@ -96,7 +102,7 @@ Both run without a window and return exit code `0` on success and `1` on failure
 
 - Open **Settings > Apps**, find **anpho's Extensions**, and click **Uninstall**.
 - Or run `%LOCALAPPDATA%\ExplorerEnhancement\uninstall.exe`.
-- The uninstaller runs the manager with `/uninstall`, then removes the files, the Start Menu shortcuts, the uninstall entry, and the per-user registration and blocked entries.
+- The uninstaller runs the manager with `/uninstall`, then removes the files, the Start Menu shortcuts, the uninstall entry, and the per-user registration and settings.
 - Silent uninstall: `uninstall.exe /S`.
 - Restart Windows Explorer afterwards.
 

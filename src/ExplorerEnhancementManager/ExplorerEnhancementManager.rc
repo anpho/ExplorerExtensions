@@ -193,9 +193,17 @@ BEGIN
     IDS_ABOUT_DESCRIPTION   "个人非商业使用免费，商业使用请联系 support@anpho.cn"
     IDS_OK_BUTTON           "确定"
     IDS_INFO_TITLE          "信息"
-    IDS_INFO_RESTART_EXPLORER "设置已应用，请重启 Windows 资源管理器以查看更改。"
-    IDS_NOT_REGISTERED      "扩展尚未注册。请先运行安装程序（ExplorerExtensionSetup.exe）。"
+    IDS_INFO_RESTART_EXPLORER "设置已应用。如果右键菜单没有变化，请重启 Windows 资源管理器。"
+    IDS_NOT_REGISTERED      "扩展未注册，自动注册也失败了。请重新运行安装程序，或以管理员身份运行本程序。"
     IDS_ERROR_APPLY         "部分设置未能写入，请检查当前用户的注册表权限。"
+    IDS_MACHINE_READONLY    "扩展已按“所有用户”范围注册。修改开关需要以管理员身份重新运行本管理器。"
+    IDS_REGISTER_FAILED     "扩展注册失败。请确认 ExplorerEnhancement DLL 与本程序在同一目录，或尝试以管理员身份运行安装程序。"
+    IDS_USER_REG_DENIED_ASK "此系统的安全策略禁止普通用户写入用户级 COM 注册（HKCU 的 Classes\CLSID）。是否以管理员身份安装到“所有用户”？（会弹出 UAC）"
+    IDS_RESTART_ELEVATED_ASK "扩展已按“所有用户”范围注册。是否以管理员身份重新启动本管理器以修改设置？"
+    IDS_CONFIRM_UNREGISTER  "确定要注销扩展（移除右键菜单）并退出吗？"
+    IDS_UNREGISTER_OK       "扩展已注销。重启 Windows 资源管理器后右键菜单会消失。"
+    IDS_UNREGISTER_FAILED   "注销扩展失败。"
+    IDS_UNREGISTER_NEED_ADMIN "该扩展是按“所有用户”注册的，注销需要以管理员身份运行本管理器。"
 END
 
 #endif    // 中文(简体，中国) resources
@@ -303,9 +311,17 @@ BEGIN
     IDS_OK_BUTTON           "OK"
     IDS_INFO_TITLE          "Information"
     IDS_INFO_RESTART_EXPLORER 
-                            "Settings have been applied. Please restart Windows Explorer to see the changes."
-    IDS_NOT_REGISTERED      "The extension is not registered. Please run the installer first (ExplorerExtensionSetup.exe)."
+                            "Settings have been applied. If the right-click menu does not change, restart Windows Explorer."
+    IDS_NOT_REGISTERED      "The extension is not registered and automatic registration failed. Run the installer again, or run this program as administrator."
     IDS_ERROR_APPLY         "Some settings could not be saved. Check your user registry permissions."
+    IDS_MACHINE_READONLY    "The extension is registered for all users. Run this manager as administrator to change the settings."
+    IDS_REGISTER_FAILED     "Failed to register the extension. Make sure the ExplorerEnhancement DLL is next to this program, or run the installer as administrator."
+    IDS_USER_REG_DENIED_ASK "This system's security policy does not allow a normal user to register per-user COM classes. Install for all users with administrator rights? (UAC prompt)"
+    IDS_RESTART_ELEVATED_ASK "The extension is registered for all users. Restart this manager as administrator to change the settings?"
+    IDS_CONFIRM_UNREGISTER  "Unregister the extension (remove the context menus) and exit?"
+    IDS_UNREGISTER_OK       "The extension has been unregistered. Restart Windows Explorer to remove the context menus."
+    IDS_UNREGISTER_FAILED   "Failed to unregister the extension."
+    IDS_UNREGISTER_NEED_ADMIN "The extension is registered for all users. Run this manager as administrator to unregister it."
 END
 
 #endif    // 英语(美国) resources

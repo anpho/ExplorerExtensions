@@ -1,4 +1,4 @@
-﻿// NewFolderExt.h: CNewFolderExt 的声明
+// NewFolderExt.h: CNewFolderExt 的声明
 // 功能：Windows资源管理器扩展，用于创建新文件夹并将选中的项目移动到该文件夹中
 // 支持：本地路径、UNC路径、SAMBA路径等网络路径
 
@@ -26,8 +26,6 @@ class ATL_NO_VTABLE CNewFolderExt : public CComObjectRootEx<CComMultiThreadModel
 									public IContextMenu		// 用于上下文菜单操作的接口
 {
 public:
-	DECLARE_REGISTRY_RESOURCEID(106)
-
 	DECLARE_NOT_AGGREGATABLE(CNewFolderExt)
 
 	BEGIN_COM_MAP(CNewFolderExt)
@@ -35,6 +33,12 @@ public:
 	COM_INTERFACE_ENTRY(IShellExtInit)
 	COM_INTERFACE_ENTRY(IContextMenu)
 	END_COM_MAP()
+
+	// 注册由 DllRegisterServer/DllInstall 直接写注册表，不使用 ATL 的注册资源。
+	static HRESULT WINAPI UpdateRegistry(BOOL /*bRegister*/) throw()
+	{
+		return S_OK;
+	}
 
 	DECLARE_PROTECT_FINAL_CONSTRUCT()
 
@@ -152,14 +156,6 @@ public:
 	/// <param name="filepath">文件路径</param>
 	/// <returns>ATL::CString 文件名（不含扩展名）</returns>
 	ATL::CString extract_filename_without_ext(const ATL::CString filepath);
-
-	/// <summary>
-	/// 组合文件夹名称和后缀
-	/// </summary>
-	/// <param name="folder_name">基础文件夹名称</param>
-	/// <param name="suffix">后缀</param>
-	/// <returns>ATL::CString 组合后的文件夹名称</returns>
-	ATL::CString combine_path(ATL::CString folder_name, ATL::CString suffix);
 
 	/// <summary>
 	/// 获取命令字符串（用于菜单项名称等）

@@ -128,10 +128,6 @@ END
 // REGISTRY
 //
 
-IDR_NEWFOLDEREXT        REGISTRY                "NewFolderExt.rgs"
-
-IDR_BREAKFOLDEREXT      REGISTRY                "BreakFolderExt.rgs"
-
 #endif    // 中文(简体，中国) resources
 /////////////////////////////////////////////////////////////////////////////
 

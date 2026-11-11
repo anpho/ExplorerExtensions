@@ -4,6 +4,42 @@
 #include "pch.h"
 #include "NewFolderExt.h"
 #include "common.h"
+#include "../Common/LocalizedString.h"
+
+namespace
+{
+ATL::CString CombineFolderPath(const ATL::CString& parent, const ATL::CString& name)
+{
+	ATL::CPath path(parent);
+	path.Append(name);
+	return ATL::CString(path);
+}
+
+// 目标名被已存在的文件占用时（无扩展名的文件很容易出现），退到“<名称> folder”并加序号；
+// 已存在同名文件夹则直接复用（原有行为）。
+ATL::CString MakeUniqueFolderPath(const ATL::CString& parent, const ATL::CString& baseName)
+{
+	ATL::CString folder = CombineFolderPath(parent, baseName);
+	if (!PathFileExistsW(folder))
+	{
+		return folder;
+	}
+	if (PathIsDirectoryW(folder))
+	{
+		return folder;
+	}
+
+	ATL::CString candidateName = baseName + L" folder";
+	folder = CombineFolderPath(parent, candidateName);
+	for (int index = 2; index < 100 && PathFileExistsW(folder) && !PathIsDirectoryW(folder); ++index)
+	{
+		ATL::CString numbered;
+		numbered.Format(L"%s (%d)", candidateName.GetString(), index);
+		folder = CombineFolderPath(parent, numbered);
+	}
+	return folder;
+}
+} // namespace
 
 // CNewFolderExt
 // extern HINSTANCE g_hInstance;
@@ -17,11 +53,8 @@ CNewFolderExt::CNewFolderExt()
 	spsia = nullptr;			   // Shell项目数组指针
 	selected_files.clear();		   // 选中文件列表
 
-	// 加载上下文菜单名称
-	if (!m_contextmenu_name.LoadStringW(IDS_MENUITEM))
-	{
-		m_contextmenu_name = L"New Folder +";
-	}
+	// 加载上下文菜单名称（按用户界面语言，中文 Windows 显示中文）
+	m_contextmenu_name = LoadLocalizedString(IDS_MENUITEM, L"New Folder +");
 
 	// 加载菜单图标
 	if (!m_icon)
@@ -110,6 +143,12 @@ DWORD __stdcall CNewFolderExt::s_ThreadProc(void* pv)
  */
 HRESULT __stdcall CNewFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDataObject* pdtobj, HKEY hkeyProgID)
 {
+	// 管理器的“启用”开关：停用时返回失败，右键菜单不显示
+	if (!IsExtensionEnabled(M_REG_ENABLE_NEWFOLDER))
+	{
+		return E_INVALIDARG;
+	}
+
 	// 保存数据对象指针
 	m_spdo = pdtobj;
 	// 清空选中文件列表
@@ -311,12 +350,11 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(IShellItemArray* psiItemAr
 		return hr;
 	}
 
-	// 要生成的文件夹路径
+	// 要生成的文件夹路径；同名文件占用目标名时改成不冲突的名字
 	CComPtr<IShellItem> pDstFolder;
-	ATL::CString path_of_the_new_folder = combine_path(target_path, common_part);
-
-	// 验证路径有效性
-	if (path_of_the_new_folder.IsEmpty()) {
+	ATL::CString path_of_the_new_folder = MakeUniqueFolderPath(target_path, common_part);
+	if (path_of_the_new_folder.IsEmpty())
+	{
 		return E_INVALIDARG;
 	}
 
@@ -619,19 +657,6 @@ ATL::CString CNewFolderExt::extract_filename_without_ext(const ATL::CString file
 	path.StripPath();
 	path.RemoveExtension();
 	return path;
-}
-
-/// <summary>
-/// 拼合路径
-/// </summary>
-/// <param name="folder_name"></param>
-/// <param name="suffix"></param>
-/// <returns></returns>
-ATL::CString CNewFolderExt::combine_path(ATL::CString folder_name, ATL::CString suffix)
-{
-	ATL::CPath base(folder_name);
-	base.Append(suffix);
-	return base;
 }
 
 HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UINT* pReserved, CHAR* pszName, UINT cchMax)
