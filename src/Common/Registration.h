@@ -13,6 +13,7 @@ namespace Registration
 {
 inline constexpr wchar_t kNewFolderClsid[] = L"{c36a65af-0a1e-4e09-9729-6da3e4e4461a}";
 inline constexpr wchar_t kBreakFolderClsid[] = L"{f2a0aaf9-2961-4465-a843-884383fcd13b}";
+inline constexpr const wchar_t* kClassIds[] = { kNewFolderClsid, kBreakFolderClsid };
 
 // ContextMenuHandlers 下是“子键 + 默认值 = CLSID”的形式。
 struct HandlerEntry
@@ -93,7 +94,7 @@ inline bool Register(HKEY root, LPCWSTR dllPath, ATL::CString& error, LONG* last
 {
     if (lastError != nullptr) { *lastError = ERROR_SUCCESS; }
     wchar_t keyPath[256] = {};
-    for (const wchar_t* clsid : { kNewFolderClsid, kBreakFolderClsid })
+    for (const wchar_t* clsid : kClassIds)
     {
         swprintf_s(keyPath, L"Software\\Classes\\CLSID\\%s\\InprocServer32", clsid);
         if (!WriteValue(root, keyPath, nullptr, dllPath, error, lastError))
@@ -131,7 +132,7 @@ inline bool Unregister(HKEY root, ATL::CString& error)
     ATL::CRegKey clsidRoot;
     if (clsidRoot.Open(root, L"Software\\Classes\\CLSID", KEY_READ | KEY_WRITE) == ERROR_SUCCESS)
     {
-        for (const wchar_t* clsid : { kNewFolderClsid, kBreakFolderClsid })
+        for (const wchar_t* clsid : kClassIds)
         {
             const LONG result = clsidRoot.RecurseDeleteKey(clsid);
             if (result != ERROR_SUCCESS && result != ERROR_FILE_NOT_FOUND)
