@@ -2,8 +2,6 @@
 // Microsoft Visual C++ 生成的包含文件。
 // 供 ExplorerEnhancement.rc 使用
 //
-#define IDS_PROJNAME                    100
-#define IDR_EXPLORERENHANCEMENT         101
 #define IDS_MENUITEM                    101
 #define IDS_MENU_BREAKFOLDERS           102
 #define IDR_NEWFOLDEREXT                106

@@ -1,66 +1,122 @@
 # How to Build
 
-This document describes how to build the Windows Explorer Extension project.
+This document describes how to build ExplorerExtensions from source and how to produce the installer.
+
+[简体中文](how-to-build-cn.md)
 
 ## Prerequisites
 
-- [Git](https://git-scm.com/downloads) installed
-- [Visual Studio 2019 or later](https://visualstudio.microsoft.com/downloads/) with the following workloads:
-  - Desktop development with C++
-  - Universal Windows Platform development (optional, for UWP support)
+- Windows 10 or Windows 11.
+- Visual Studio 2022 with the **Desktop development with C++** workload. This provides the v143 toolset, ATL, and a Windows 10/11 SDK.
+- NSIS 3.x (only needed to build the installer).
+- Git (only needed to clone the repository).
 
-## Step 1: Clone the Repository
+WTL 10 is vendored in the repository (`src\third_party\wtl`).
 
-Open a terminal or command prompt and run the following command to clone the repository:
+## Repository layout
 
-```bash
-git clone https://github.com/anpho/WindowsExplorerExtension.git
-cd WindowsExplorerExtension
+- `src\ExplorerEnhancement` - the shell extension DLL project (**New Folder +** and **Break Folders +**).
+- `src\ExplorerEnhancementManager` - the manager app; it also handles `/install` and `/uninstall`.
+- `src\third_party\wtl` - WTL 10 headers, vendored. Licensed under the Microsoft Public License; see `src\third_party\wtl\MS-PL.txt`.
+- `src\version.h` - the single source of the product version (`APP_VER_*` macros and `APP_VER_STRING`).
+- `Installer.nsi` - the NSIS installer script.
+- `.github\workflows` - the CI build and tag release workflows.
+
+## Build the binaries
+
+1. Open `src\ExplorerEnhancement.sln` in Visual Studio 2022.
+2. Select the **Release** configuration and the **x86** platform, then build the solution (**Build > Build Solution**, `Ctrl+Shift+B`).
+3. Select the **x64** platform and build again.
+
+Both projects build for x86 and x64. Release outputs are written to `src\build\`:
+
+| Platform | Files |
+| --- | --- |
+| x86 | `ExplorerEnhancement_x86.dll`, `ExplorerEnhancementManager_x86.exe` |
+| x64 | `ExplorerEnhancement_x64.dll`, `ExplorerEnhancementManager_x64.exe` |
+
+## Build the installer
+
+1. Install NSIS 3.x and make sure `makensis` is available in your command prompt.
+2. Build the Release x86 and x64 binaries first (see above). The installer carries both and installs the one that matches Windows.
+3. From the repository root, run:
+
+```bat
+makensis /DVERSION=1.2.3.0 Installer.nsi
 ```
 
-## Step 2: Open the Solution in Visual Studio
+The installer is written to `ExplorerExtensionSetup.exe` in the repository root.
 
-Navigate to the cloned repository folder and open the solution file:
+- `/DVERSION` must be a four-part version such as `1.2.3.0`. The default is `1.0.0.0`.
+- Pass the same version as `APP_VER_STRING` in `src\version.h` (see below).
 
+## Test a local build
+
+1. Build the Release configuration for your Windows architecture.
+2. Register the extension with the manager. It registers the DLL that sits next to it:
+
+```bat
+src\build\ExplorerEnhancementManager_x64.exe /install
 ```
-src/ExplorerEnhancement.sln
+
+Use `ExplorerEnhancementManager_x86.exe` on 32-bit Windows. The exit code is `0` on success and `1` on failure.
+
+3. Restart Windows Explorer.
+4. Test both commands on files and folders.
+5. Unregister when you are done, then restart Windows Explorer again:
+
+```bat
+src\build\ExplorerEnhancementManager_x64.exe /uninstall
 ```
 
-You can do this in two ways:
+You can also register the DLL with `regsvr32` as a normal (non-admin) user: `regsvr32 src\build\ExplorerEnhancement_x64.dll`.
 
-1. **Using File Explorer**: 
-   - Navigate to the `src` folder
-   - Double-click on `ExplorerEnhancement.sln` to open it in Visual Studio
+## Version numbers
 
-2. **Using Visual Studio**: 
-   - Launch Visual Studio
-   - Click on "File" > "Open" > "Project/Solution"
-   - Navigate to the `src` folder and select `ExplorerEnhancement.sln`
+`src\version.h` is the single source of truth for the product version:
 
-## Step 3: Build the Project
+- `APP_VER_MAJOR`, `APP_VER_MINOR`, `APP_VER_PATCH`, `APP_VER_BUILD` - the numeric parts.
+- `APP_VER_STRING` - the four-part version string used in the VERSIONINFO resources, for example `1.0.0.0`.
 
-Once the solution is open in Visual Studio:
+Both resource files include this header. The installer takes its own version from `/DVERSION`.
 
-1. **Select the Build Configuration**: 
-   - Choose either "Debug" or "Release" from the configuration dropdown menu
-   - Select the platform ("x86" or "x64")
+To bump the version for a local build, edit `src\version.h` (all macros) and pass the same version to `makensis /DVERSION`.
 
-2. **Build the Solution**: 
-   - Click on "Build" > "Build Solution" from the menu
-   - Or use the keyboard shortcut `Ctrl+Shift+B`
+For a release, do not edit the header by hand. The release workflow overwrites `src\version.h` from the git tag:
 
-## Step 4: Build the Installer (Optional)
+| Tag | Version | Release type |
+| --- | --- | --- |
+| `v1.2` | `1.2.0.0` | normal |
+| `v1.2.3` | `1.2.3.0` | normal |
+| `v1.2.3-beta` | `1.2.3.0` | prerelease, suffix dropped |
 
-If you want to build the installer package:
+## Release (maintainers)
 
-1. Make sure you have [NSIS (Nullsoft Scriptable Install System)](https://nsis.sourceforge.io/Download) installed
-2. Open the `Installer.nsi` file in NSIS
-3. Click on "Compile NSIS Script" to build the installer
+Releases are built and signed by GitHub Actions.
 
-The compiled installer will be named `ExplorerExtensionSetup.exe`.
+- `.github/workflows/msbuild.yml` builds every push and pull request. It does not sign or publish anything.
+- `.github/workflows/create-release.yml` runs when a tag is pushed. It validates the tag and derives the four-part version, overwrites `src\version.h`, builds Release x86 and x64, signs the binaries, builds the installer and the two zips, and publishes the GitHub release with the artifacts.
 
-## Troubleshooting
+Signing requirements (repository secrets):
 
-- If you encounter missing dependencies, make sure all required Visual Studio workloads are installed
-- If you have issues with the build, try cleaning the solution first ("Build" > "Clean Solution") and then rebuilding
-- Ensure you're using a compatible version of Visual Studio (2019 or later)
+- `PFX_CERTIFICATE` - the code-signing certificate as a Base64-encoded PFX.
+- `PFX_PASSWORD` - the PFX password.
+
+Publishing requirements:
+
+- The release job runs in a protected environment named `release`. Add required reviewers to that environment if you want a manual approval before publishing.
+- The release is published only when the tag is on `master`. A tag created on another branch is rejected.
+
+Release artifacts:
+
+- `ExplorerExtensionSetup.exe`
+- `Extensions-x86-<version>.zip`
+- `Extensions-x64-<version>.zip`
+- `LICENSE.md`
+
+To publish a release, create a tag from `master` and push it:
+
+```bat
+git tag v1.2.3
+git push origin v1.2.3
+```

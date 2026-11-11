@@ -5,10 +5,8 @@
 #pragma once
 #include "resource.h" // 主符号 
 #include <ShlObj.h>
-#include <wil/resource.h>
 #include <atlstr.h>
 #include <vector>
-#include <new>
 
 #include "ExplorerEnhancement_i.h"
 
@@ -20,13 +18,12 @@ using namespace ATL;
 
 // CNewFolderExt 类
 // 功能：实现Windows资源管理器的上下文菜单扩展，用于创建新文件夹并将选中项目移动到该文件夹
-// 接口：实现了IShellExtInit（初始化）、IContextMenu（上下文菜单）和IExplorerCommand（Explorer命令）等接口
-class ATL_NO_VTABLE CNewFolderExt : public CComObjectRootEx<CComSingleThreadModel>,
+// 接口：实现了IShellExtInit（初始化）和IContextMenu（上下文菜单）等接口
+class ATL_NO_VTABLE CNewFolderExt : public CComObjectRootEx<CComMultiThreadModel>,
 									public CComCoClass<CNewFolderExt, &CLSID_NewFolderExt>,
 									public INewFolderExt,
 									public IShellExtInit,	// 用于扩展初始化的接口
-									public IContextMenu,	// 用于上下文菜单操作的接口
-									public IExplorerCommand // Windows 11及以上支持的新命令接口
+									public IContextMenu		// 用于上下文菜单操作的接口
 {
 public:
 	DECLARE_REGISTRY_RESOURCEID(106)
@@ -37,7 +34,6 @@ public:
 	COM_INTERFACE_ENTRY(INewFolderExt)
 	COM_INTERFACE_ENTRY(IShellExtInit)
 	COM_INTERFACE_ENTRY(IContextMenu)
-	COM_INTERFACE_ENTRY(IExplorerCommand)
 	END_COM_MAP()
 
 	DECLARE_PROTECT_FINAL_CONSTRUCT()
@@ -120,10 +116,9 @@ public:
 	/// <summary>
 	/// 创建新文件夹并移动项目
 	/// </summary>
-	/// <param name="pici">命令调用信息</param>
 	/// <param name="psiItemArray">选中的Shell项目数组</param>
 	/// <returns>HRESULT 操作结果</returns>
-	HRESULT __stdcall DoCreateAndMoveItems(CMINVOKECOMMANDINFO *pici, IShellItemArray *psiItemArray);
+	HRESULT __stdcall DoCreateAndMoveItems(IShellItemArray *psiItemArray);
 
 	/// <summary>
 	/// 计算两个字符串的第一个公共子串长度
@@ -152,26 +147,11 @@ public:
 	ATL::CString find_common_prefix(const std::vector<ATL::CString> filepaths, OUT ATL::CString *default_path);
 
 	/// <summary>
-	/// 从文件路径中提取文件名（包含扩展名）
-	/// </summary>
-	/// <param name="filepath">文件路径</param>
-	/// <returns>ATL::CString 文件名</returns>
-	ATL::CString extract_filename(const ATL::CString filepath);
-
-	/// <summary>
 	/// 从文件路径中提取文件名（不包含扩展名）
 	/// </summary>
 	/// <param name="filepath">文件路径</param>
 	/// <returns>ATL::CString 文件名（不含扩展名）</returns>
 	ATL::CString extract_filename_without_ext(const ATL::CString filepath);
-
-	/// <summary>
-	/// 重定向文件路径到新的基础文件夹
-	/// </summary>
-	/// <param name="src_path">源文件路径</param>
-	/// <param name="new_base_folder">新的基础文件夹</param>
-	/// <returns>ATL::CString 重定向后的路径</returns>
-	ATL::CString rebase_path(ATL::CString src_path, ATL::CString new_base_folder);
 
 	/// <summary>
 	/// 组合文件夹名称和后缀
@@ -192,72 +172,8 @@ public:
 	/// <returns>HRESULT 操作结果</returns>
 	virtual HRESULT __stdcall GetCommandString(UINT_PTR idCmd, UINT uType, UINT *pReserved, CHAR *pszName, UINT cchMax) override;
 
-	// 通过 IExplorerCommand 继承
-	/// <summary>
-	/// 获取命令标题（用于上下文菜单显示）
-	/// </summary>
-	/// <param name="psiItemArray">选中的Shell项目数组</param>
-	/// <param name="ppszName">输出的标题字符串指针</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall GetTitle(IShellItemArray *psiItemArray, LPWSTR *ppszName) override;
-
-	/// <summary>
-	/// 获取命令图标路径
-	/// </summary>
-	/// <param name="psiItemArray">选中的Shell项目数组</param>
-	/// <param name="ppszIcon">输出的图标路径字符串指针</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall GetIcon(IShellItemArray *psiItemArray, LPWSTR *ppszIcon) override;
-
-	/// <summary>
-	/// 获取命令工具提示
-	/// </summary>
-	/// <param name="psiItemArray">选中的Shell项目数组</param>
-	/// <param name="ppszInfotip">输出的工具提示字符串指针</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall GetToolTip(IShellItemArray *psiItemArray, LPWSTR *ppszInfotip) override;
-
-	/// <summary>
-	/// 获取命令的规范名称（GUID）
-	/// </summary>
-	/// <param name="pguidCommandName">输出的命令GUID</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall GetCanonicalName(GUID *pguidCommandName) override;
-
-	/// <summary>
-	/// 获取命令状态（启用/禁用等）
-	/// </summary>
-	/// <param name="psiItemArray">选中的Shell项目数组</param>
-	/// <param name="fOkToBeSlow">是否允许慢操作</param>
-	/// <param name="pCmdState">输出的命令状态</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall GetState(IShellItemArray *psiItemArray, BOOL fOkToBeSlow, EXPCMDSTATE *pCmdState) override;
-
-	/// <summary>
-	/// 调用命令（IExplorerCommand接口）
-	/// </summary>
-	/// <param name="psiItemArray">选中的Shell项目数组</param>
-	/// <param name="pbc">绑定上下文</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall Invoke(IShellItemArray *psiItemArray, IBindCtx *pbc) override;
-
-	/// <summary>
-	/// 获取命令标志
-	/// </summary>
-	/// <param name="pFlags">输出的命令标志</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall GetFlags(EXPCMDFLAGS *pFlags) override;
-
-	/// <summary>
-	/// 枚举子命令
-	/// </summary>
-	/// <param name="ppEnum">输出的子命令枚举器</param>
-	/// <returns>HRESULT 操作结果</returns>
-	virtual HRESULT __stdcall EnumSubCommands(IEnumExplorerCommand **ppEnum) override;
-
 private:
 	CComPtr<IDataObject> m_spdo = nullptr;	  // 数据对象指针，包含选中的项目
-	CComPtr<IBindCtx> ibindctx = nullptr;	  // 绑定上下文指针
 	ATL::CString m_contextmenu_name;		  // 上下文菜单名称
 	std::vector<ATL::CString> selected_files; // 选中的文件路径列表，支持UNC路径
 	HBITMAP m_icon = nullptr;				  // 菜单项图标
@@ -266,18 +182,9 @@ private:
 };
 
 /// <summary>
-/// 线程参数结构体
-/// </summary>
-struct threadParam
-{
-	HWND hwnd;				  // 窗口句柄
-	LPCWSTR folder_to_select; // 要选择的文件夹路径
-};
-
-/// <summary>
 /// 选择项目的线程函数
 /// </summary>
-/// <param name="pArguments">线程参数</param>
+/// <param name="pArguments">新文件夹路径（CString*，由线程负责释放）</param>
 /// <returns>unsigned 线程退出码</returns>
 unsigned __stdcall selectItem(void *pArguments);
 

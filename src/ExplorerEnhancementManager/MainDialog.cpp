@@ -1,18 +1,12 @@
-﻿
 #include "pch.h"
 #include "MainDialog.h"
 #include "AboutDialog.h"
 
-LRESULT CMainDialog::OnInitDialog(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+LRESULT CMainDialog::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
 {
-    // 设置窗口居中
     CenterWindow();
 
-    // 初始化UI状态
-    UpdateUI();
-
-    // 动态加载字符串资源，设置对话框标题和控件文本
-    CString strTitle, strBreakFolder, strNewFolder, strApply, strAbout, strExit;
+    CString strTitle, strBreakFolder, strNewFolder, strApply, strAbout, strExit, strDescription;
     strTitle.LoadString(IDS_MAIN_TITLE);
     strBreakFolder.LoadString(IDS_BREAKFOLDER_CHECK);
     strNewFolder.LoadString(IDS_NEWFOLDER_CHECK);
@@ -20,86 +14,93 @@ LRESULT CMainDialog::OnInitDialog(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
     strAbout.LoadString(IDS_ABOUT_BUTTON);
     strExit.LoadString(IDS_EXIT_BUTTON);
 
-    // 设置对话框标题
     SetWindowText(strTitle);
-    // 设置复选框文本
     SetDlgItemText(IDC_BREAKFOLDER_CHECK, strBreakFolder);
     SetDlgItemText(IDC_NEWFOLDER_CHECK, strNewFolder);
-    // 设置按钮文本
     SetDlgItemText(IDC_APPLY_BUTTON, strApply);
     SetDlgItemText(IDC_ABOUT_BUTTON, strAbout);
     SetDlgItemText(IDC_EXIT_BUTTON, strExit);
+
+    // 未注册（没装或已手工 regsvr32 /u）时不能改开关，否则只是个假开关。
+    m_installed = m_registryHelper.IsExplorerEnhancementRegistered() != FALSE;
+    strDescription.LoadString(m_installed ? IDS_MAIN_DESCRIPTION : IDS_NOT_REGISTERED);
+    SetDlgItemText(IDC_MAIN_DESCRIPTION, strDescription);
+    GetDlgItem(IDC_BREAKFOLDER_CHECK).EnableWindow(m_installed ? TRUE : FALSE);
+    GetDlgItem(IDC_NEWFOLDER_CHECK).EnableWindow(m_installed ? TRUE : FALSE);
+    GetDlgItem(IDC_APPLY_BUTTON).EnableWindow(m_installed ? TRUE : FALSE);
+
+    UpdateUI();
 
     bHandled = FALSE;
     return TRUE;
 }
 
-LRESULT CMainDialog::OnApply(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
+LRESULT CMainDialog::OnClose(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+{
+    DestroyWindow();
+    return 0;
+}
+
+LRESULT CMainDialog::OnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+{
+    ::PostQuitMessage(0);
+    return 0;
+}
+
+LRESULT CMainDialog::OnApply(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
     ApplyChanges();
     return 0;
 }
 
-LRESULT CMainDialog::OnAbout(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
+LRESULT CMainDialog::OnAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
     CAboutDialog aboutDlg;
     aboutDlg.DoModal();
     return 0;
 }
 
-LRESULT CMainDialog::OnExit(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
+LRESULT CMainDialog::OnExit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    EndDialog(IDCANCEL);
+    DestroyWindow();
     return 0;
 }
 
-LRESULT CMainDialog::OnOK(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
+LRESULT CMainDialog::OnCancelCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    ApplyChanges();
-    EndDialog(wID);
-    return 0;
-}
-
-LRESULT CMainDialog::OnCancel(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
-{
-    EndDialog(wID);
+    DestroyWindow();
     return 0;
 }
 
 void CMainDialog::UpdateUI()
 {
-    // 检查当前的启用状态
-    BOOL bBreakFolderEnabled = m_registryHelper.IsBreakFolderEnabled();
-    BOOL bNewFolderEnabled = m_registryHelper.IsNewFolderEnabled();
-
-    // 更新复选框状态
-    CheckDlgButton(IDC_BREAKFOLDER_CHECK, bBreakFolderEnabled ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(IDC_NEWFOLDER_CHECK, bNewFolderEnabled ? BST_CHECKED : BST_UNCHECKED);
+    // 「停用」= 在 HKCU 的 Shell Extensions\Blocked 里登记 CLSID。
+    const BOOL breakEnabled = m_installed && m_registryHelper.IsBreakFolderEnabled();
+    const BOOL newEnabled = m_installed && m_registryHelper.IsNewFolderEnabled();
+    CheckDlgButton(IDC_BREAKFOLDER_CHECK, breakEnabled ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(IDC_NEWFOLDER_CHECK, newEnabled ? BST_CHECKED : BST_UNCHECKED);
 }
-
-extern BOOL ProcessCommandLine(LPCWSTR lpCmdLine, CRegistryHelper& registryHelper);
 
 void CMainDialog::ApplyChanges()
 {
-    CRegistryHelper registryHelper;
+    // 只有两处写入都成功才算成功，不再默认弹「已应用」。
+    const BOOL breakOk = m_registryHelper.SetBreakFolderEnabled(
+        IsDlgButtonChecked(IDC_BREAKFOLDER_CHECK) == BST_CHECKED);
+    const BOOL newOk = m_registryHelper.SetNewFolderEnabled(
+        IsDlgButtonChecked(IDC_NEWFOLDER_CHECK) == BST_CHECKED);
 
-    // 检查命令行参数
-    if (!ProcessCommandLine(L"/install", registryHelper))
+    CString strMessage, strTitle;
+    strTitle.LoadString(IDS_INFO_TITLE);
+    if (breakOk && newOk)
     {
-        ::CoUninitialize();
+        strMessage.LoadString(IDS_INFO_RESTART_EXPLORER);
+        MessageBox(strMessage, strTitle, MB_OK | MB_ICONINFORMATION);
+    }
+    else
+    {
+        strMessage.LoadString(IDS_ERROR_APPLY);
+        MessageBox(strMessage, strTitle, MB_OK | MB_ICONERROR);
     }
 
-    // 获取用户选择的状态
-    BOOL bBreakFolderEnabled = IsDlgButtonChecked(IDC_BREAKFOLDER_CHECK) == BST_CHECKED;
-    BOOL bNewFolderEnabled = IsDlgButtonChecked(IDC_NEWFOLDER_CHECK) == BST_CHECKED;
-
-    // 应用更改
-    m_registryHelper.SetBreakFolderEnabled(bBreakFolderEnabled);
-    m_registryHelper.SetNewFolderEnabled(bNewFolderEnabled);
-
-    // 提示用户需要重启Explorer
-    CString strMessage, strTitle;
-    strMessage.LoadString(IDS_INFO_RESTART_EXPLORER);
-    strTitle.LoadString(IDS_INFO_TITLE);
-    MessageBox(strMessage, strTitle, MB_OK | MB_ICONINFORMATION);
+    UpdateUI();
 }

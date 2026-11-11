@@ -6,7 +6,6 @@
 #include "resource.h" // 主符号
 #include <ShlObj.h>
 #include <vector>
-#include <string>
 #include <atlstr.h>
 
 #include "ExplorerEnhancement_i.h"
@@ -52,14 +51,7 @@ public:
 	/// <returns>HRESULT 操作结果</returns>
 	HRESULT FinalConstruct()
 	{
-		if (SUCCEEDED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
-		{
-			return S_OK;
-		}
-		else
-		{
-			return E_FAIL;
-		}
+		return S_OK;
 	}
 
 	/// <summary>
@@ -67,12 +59,12 @@ public:
 	/// </summary>
 	void FinalRelease()
 	{
-		if (m_hIcon)
+		// 菜单位图由本对象创建，需要释放；m_hIcon 是 LR_SHARED，不能删除
+		if (m_hBitmap)
 		{
-			DeleteObject(m_hIcon); // 释放图标资源
-			m_hIcon = nullptr;
+			DeleteObject(m_hBitmap); // 释放位图资源
+			m_hBitmap = nullptr;
 		}
-		CoUninitialize(); // 释放COM资源
 	}
 
 public:
@@ -118,7 +110,7 @@ public:
 
 private:
 	ATL::CString m_contextMenuName;				 // 上下文菜单名称
-	std::vector<std::wstring> m_selectedFolders; // 存储选中的文件夹路径，支持UNC路径
+	std::vector<ATL::CComPtr<IShellItem>> m_folders; // 选中的文件夹Shell项目
 	HRESULT OnBreakFoldersTriggered();			 // 处理"打破文件夹"操作的函数
 	HICON m_hIcon = nullptr;					 // 菜单项图标句柄
 	HBITMAP m_hBitmap = nullptr;				 // 菜单项位图句柄

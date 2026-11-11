@@ -69,9 +69,6 @@
     <ClCompile Include="NewFolderExt.cpp">
       <Filter>Module:NewFolderExt</Filter>
     </ClCompile>
-    <ClCompile Include="common.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="BreakFolderExt.cpp">
       <Filter>Module:BreakFolderExt</Filter>
     </ClCompile>
@@ -82,9 +79,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ExplorerEnhancement.rgs">
-      <Filter>资源文件</Filter>
-    </None>
     <None Include="ExplorerEnhancement.def">
       <Filter>源文件</Filter>
     </None>
@@ -94,18 +88,10 @@
     <None Include="BreakFolderExt.rgs">
       <Filter>Module:BreakFolderExt</Filter>
     </None>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="ExplorerEnhancement.idl">
       <Filter>源文件</Filter>
     </Midl>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageLayout Include="AppxManifest.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="$(MSBuildThisFileDirectory)..\..\natvis\wil.natvis" />
-    <Natvis Include="$(MSBuildThisFileDirectory)..\..\natvis\wil.natstepfilter" />
   </ItemGroup>
 </Project>

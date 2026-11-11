@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <atlbase.h>
 #include <atlstr.h>
@@ -8,6 +8,9 @@ class CRegistryHelper
 public:
     CRegistryHelper();
     ~CRegistryHelper();
+
+    // DLL 是否已按当前用户注册（HKCU\Software\Classes\CLSID\...\InprocServer32）。
+    BOOL IsExplorerEnhancementRegistered();
 
     // 检查并启用/禁用 BreakFolder 上下文菜单
     BOOL IsBreakFolderEnabled();

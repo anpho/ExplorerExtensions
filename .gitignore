@@ -32,17 +32,23 @@
 *.out
 *.app
 
+# Visual Studio generated / per-user files
+*.aps
+*.vcxproj.user
 /src/.vs
+/.vs
+
+# Build output
 /src/build
 /src/debug
-/src/packages
+/src/ExplorerEnhancement/debug/
+/src/ExplorerEnhancement/release/
+/src/ExplorerEnhancementManager/debug/
+/src/ExplorerEnhancementManager/release/
+
+# MIDL output
 /src/ExplorerEnhancement/ExplorerEnhancement_i.c
 /src/ExplorerEnhancement/ExplorerEnhancement_i.h
 /src/ExplorerEnhancement/ExplorerEnhancement_p.c
-/src/ExplorerEnhancement/debug/
-/src/ExplorerEnhancementManager/ExplorerEnhancementManager.aps
-/src/ExplorerEnhancementManager/debug/
-/src/ExplorerEnhancement/release/
-/src/ExplorerEnhancementManager/release/
+
 .trae/
-/.vs

@@ -1,10 +1,18 @@
 ﻿#pragma once
 #include "pch.h"
 
-constexpr auto M_REG_BASEKEY = L"Software\\anpho\\ExplorerEnhancement";
-;
-constexpr auto M_REG_ENABLE_NEWFOLDER = L"EnableNewFolderPlus";
- 
+// 显示文件操作错误：context 说明 + HRESULT 的系统描述 + 十六进制错误码
+inline void ShowOperationError(HWND hwnd, HRESULT hr, LPCWSTR context)
+{
+    wchar_t reason[512] = L"";
+    FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, static_cast<DWORD>(hr), 0,
+                   reason, static_cast<DWORD>(ARRAYSIZE(reason)), nullptr);
+
+    wchar_t text[1024];
+    swprintf_s(text, L"%s\n\n%s (0x%08X)", context, reason, static_cast<unsigned>(hr));
+    MessageBoxW(hwnd, text, L"anpho's Extensions", MB_ICONERROR | MB_OK);
+}
+
 static HBITMAP IconToBitmap(HICON hIcon, SIZE *pTargetSize = NULL)
 {
     ICONINFO info = {0};
@@ -171,23 +179,4 @@ static HBITMAP IconToBitmap(HICON hIcon, SIZE *pTargetSize = NULL)
     }
 
     return dib;
-}
-
-static DWORD RegGetDword(HKEY hKey, const std::wstring &subKey, const std::wstring &value)
-{
-    DWORD data{1};
-    DWORD datasize = sizeof(data);
-    HRESULT hr = ::RegGetValue(
-        hKey,
-        subKey.c_str(),
-        value.c_str(),
-        RRF_RT_REG_DWORD,
-        nullptr,
-        &data,
-        &datasize);
-    if (FAILED(hr))
-    {
-        return 1; // 默认值为1，表示启用
-    }
-    return data;
 }

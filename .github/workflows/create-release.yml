@@ -3,292 +3,259 @@ name: Create Release
 on:
   push:
     tags:
-      - 'v*'  # 触发以 v 开头的标签
+      - 'v*'
 
 permissions:
-  contents: write  # 需要写入权限来创建 releases
+  contents: write
+
+concurrency:
+  group: "release-${{ github.ref }}"
+  cancel-in-progress: false
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
+    environment: release
 
     steps:
-    - uses: actions/checkout@v6.0.2
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Get tag name
-      id: tag
-      run: |
-        $tagName = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 1)
-        echo "TAG_NAME=$tagName" >> $env:GITHUB_OUTPUT
-        # Extract version number from tag (remove 'v' prefix)
-        $version = $tagName.Substring(1)  # Remove 'v' prefix
-        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-      shell: pwsh
-
-    - name: Display version info
-      run: |
-        echo "Tag: ${{ steps.tag.outputs.TAG_NAME }}"
-        echo "Version: ${{ steps.tag.outputs.VERSION }}"
-
-    - name: Update version in ExplorerEnhancement.rc
-      shell: pwsh
-      run: |
-        # Parse version from tag (e.g., v1.0 -> 1,0,0,0 or v1.0.1 -> 1,0,1,0)
-        $versionStr = "${{ steps.tag.outputs.VERSION }}"
-        $versionParts = $versionStr.Split('.')
-
-        # Pad version to 4 parts if needed (e.g., 1.0 becomes 1.0.0.0)
-        while ($versionParts.Count -lt 4) {
-            $versionParts += "0"
-        }
-
-        # Create version numbers for FILEVERSION and PRODUCTVERSION
-        $fileVersion = $versionParts -join ","
-        $productVersion = $versionParts -join ","
-
-        # Also update the string values
-        $stringVersion = $versionParts -join "."
-
-        Write-Host "Updating version to: $stringVersion"
-
-        # Read the RC file
-        $rcFile = "src\ExplorerEnhancement\ExplorerEnhancement.rc"
-        $content = Get-Content $rcFile -Raw
-
-        # Replace version info
-        $content = $content -replace '(FILEVERSION\s+)\d+,\d+,\d+,\d+', "`${1}$fileVersion"
-        $content = $content -replace '(PRODUCTVERSION\s+)\d+,\d+,\d+,\d+', "`${1}$productVersion"
-        $content = $content -replace '(VALUE "FileVersion",\s+")\d+\.\d+\.\d+\.\d+(")', "`${1}$stringVersion`${2}"
-        $content = $content -replace '(VALUE "ProductVersion",\s+")\d+\.\d+\.\d+\.\d+(")', "`${1}$stringVersion`${2}"
-
-        # Write back the updated content
-        Set-Content $rcFile $content -Encoding UTF8
-
-        Write-Host "Updated version in ExplorerEnhancement.rc"
-
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Restore NuGet packages
-      working-directory: ${{ github.workspace }}
-      run: nuget restore ./src
-
-    - name: Build x86
-      working-directory: ${{ github.workspace }}
-      run: msbuild /m /p:Configuration=Release /p:Platform=x86 ./src
-
-    - name: Build x64
-      working-directory: ${{ github.workspace }}
-      run: msbuild /m /p:Configuration=Release /p:Platform=x64 ./src
-
-    - name: sign
-      shell: pwsh
-      run: |
-          # 改进的 signtool 查找逻辑
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
-                      Where-Object { $_.DirectoryName -match "\\x64\\" } |
-                      Sort-Object FullName -Descending |
-                      Select-Object -First 1
-
-          # 检查是否找到了 signtool
-          if ($signtool -eq $null) {
-              Write-Host "Attempting alternative search methods..."
-              # 备选方案：搜索所有版本的 Windows SDK
-              $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -File -ErrorAction SilentlyContinue |
-                          Sort-Object FullName -Descending |
-                          Select-Object -First 1
+      - name: Compute version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(\d+)(\.\d+){0,3}(-[0-9A-Za-z.]+)?$') {
+            throw "Invalid release tag '$tag'. Expected vMAJOR[.MINOR[.PATCH[.BUILD]]][-PRERELEASE]."
           }
-
-          # 如果仍然没有找到，则从环境变量或默认路径查找
-          if ($signtool -eq $null) {
-              Write-Host "Attempting to find signtool in common locations..."
-              $possiblePaths = @(
-                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
-                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe",
-                  "${env:ProgramFiles}\Microsoft SDKs\Windows\v*\Bin\Signtool.exe"
-              )
-
-              foreach ($path in $possiblePaths) {
-                  $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
-                  if ($found) {
-                      $signtool = $found
-                      break
-                  }
-              }
+          $core, $prerelease = $tag.Substring(1) -split '-', 2
+          if ($core -notmatch '^\d+(\.\d+){0,3}$') {
+            throw "Invalid numeric version '$core' in release tag '$tag'."
           }
-
-          # 验证是否找到了 signtool
-          if ($signtool -eq $null) {
-              throw "Could not find signtool.exe in any known location."
-          } else {
-              $signtoolPath = $signtool.FullName
-              Write-Host "Found signtool at: $signtoolPath"
+          $parts = @($core -split '\.')
+          while ($parts.Count -lt 4) {
+            $parts += '0'
           }
+          $ver4 = $parts -join '.'
+          $isPrerelease = if ($prerelease) { 'true' } else { 'false' }
+          "ver4=$ver4" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "is_prerelease=$isPrerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Release version: $ver4 (prerelease=$isPrerelease)"
 
-          $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
-          $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
-          [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
-          Write-Host "PFX certificate restored to: $pfxPath"
-
-          # 确保证书文件已创建且可访问
-          if (-not (Test-Path $pfxPath)) {
-              throw "Certificate file was not created at: $pfxPath"
-          }
-          Write-Host "Certificate file exists and is accessible."
-
-          $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
-          $timestampServer = "http://timestamp.digicert.com"
-
-          # 查找并签名所有构建输出文件
-          $filesToSign = @()
-          
-          # 添加x86构建输出
-          $x86Dll = "./src/build/ExplorerEnhancement_x86.dll"
-          if (Test-Path $x86Dll) {
-              $filesToSign += $x86Dll
-          }
-          
-          $x86Exe = "./src/build/ExplorerEnhancementManager_x86.exe"
-          if (Test-Path $x86Exe) {
-              $filesToSign += $x86Exe
-          }
-          
-          # 添加x64构建输出
-          $x64Dll = "./src/build/ExplorerEnhancement_x64.dll"
-          if (Test-Path $x64Dll) {
-              $filesToSign += $x64Dll
-          }
-          
-          $x64Exe = "./src/build/ExplorerEnhancementManager_x64.exe"
-          if (Test-Path $x64Exe) {
-              $filesToSign += $x64Exe
-          }
-
-          # 签名文件
-          foreach ($file in $filesToSign) {
-              if (Test-Path $file) {
-                  Write-Host "Signing file: $file"
-                  & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "$timestampServer" /v "$file"
-                  if ($LASTEXITCODE -ne 0) {
-                      Write-Warning "Failed to sign file: $file (Exit code: $LASTEXITCODE)"
-                  } else {
-                      Write-Host "Successfully signed: $file"
-                  }
-              } else {
-                  Write-Warning "File not found: $file"
-              }
-          }
-
-    - name: Install NSIS
-      uses: negrutiu/nsis-install@v2
-
-    - name: Build Installer
-      working-directory: ${{github.workspace}}
-      run: makensis Installer.nsi
-
-    - name: Sign Installer
-      shell: pwsh
-      run: |
-        # 对安装程序进行签名
-        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
-                    Where-Object { $_.DirectoryName -match "\\x64\\" } |
-                    Sort-Object FullName -Descending |
-                    Select-Object -First 1
-
-        if ($signtool -eq $null) {
-            $possiblePaths = @(
-                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
-                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe"
-            )
-
-            foreach ($path in $possiblePaths) {
-                $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($found) {
-                    $signtool = $found
-                    break
-                }
-            }
-        }
-
-        if ($signtool -eq $null) {
-            throw "Could not find signtool.exe in any known location."
-        } else {
-            $signtoolPath = $signtool.FullName
-            Write-Host "Found signtool at: $signtoolPath"
-        }
-
-        $installerPath = "./ExplorerExtensionSetup.exe"
-        $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"  # 使用与前面相同的路径
-        $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
-
-        if (Test-Path $installerPath) {
-            Write-Host "Signing installer: $installerPath"
-            & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "http://timestamp.digicert.com" /v "$installerPath"
+      - name: Ensure tag is on master
+        shell: pwsh
+        run: |
+          git show-ref --verify --quiet refs/remotes/origin/master
+          if ($LASTEXITCODE -eq 0) {
+            git merge-base --is-ancestor $env:GITHUB_SHA origin/master
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Failed to sign installer: $installerPath (Exit code: $LASTEXITCODE)"
-            } else {
-                Write-Host "Successfully signed installer: $installerPath"
+              throw "Release tag commit $env:GITHUB_SHA is not an ancestor of origin/master; releases must be tagged from master."
             }
-        } else {
-            Write-Warning "Installer not found: $installerPath"
-        }
+          } else {
+            git show-ref --verify --quiet refs/remotes/origin/main
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Neither origin/master nor origin/main is available; cannot verify the release commit.'
+            }
+            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+            if ($LASTEXITCODE -ne 0) {
+              throw "Release tag commit $env:GITHUB_SHA is not an ancestor of origin/main; releases must be tagged from master."
+            }
+          }
 
-    - name: Create x86 zip archive
-      shell: pwsh
-      run: |
-        $version = "${{ steps.tag.outputs.VERSION }}"
-        $x86Dir = "./src/build/"
-        $x86Zip = "Extensions-x86-$version.zip"
-        
-        if (Test-Path $x86Dir) {
-            # Create a temporary directory with the files
-            $tempDir = "temp_x86"
-            New-Item -ItemType Directory -Path $tempDir -Force
-            
-            # Copy x86 build files
-            Copy-Item "$x86Dir/ExplorerEnhancement_x86.dll" $tempDir
-            Copy-Item "$x86Dir/ExplorerEnhancementManager_x86.exe" $tempDir
-            
-            # Create the zip file
-            Compress-Archive -Path "$tempDir\*" -DestinationPath $x86Zip -Force
-            
-            # Clean up
-            Remove-Item $tempDir -Recurse -Force
-            
-            Write-Host "Created x86 archive: $x86Zip"
-        } else {
-            Write-Warning "x86 build directory not found: $x86Dir"
-        }
+      - name: Write version.h
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.ver4 }}
+        run: |
+          $parts = $env:VERSION -split '\.'
+          if ($parts.Count -ne 4) {
+            throw "Expected a four-part version, got '$env:VERSION'."
+          }
+          $lines = @(
+            '// Generated by CI from the release tag; do not edit manually.'
+            '#pragma once'
+            ''
+            "#define APP_VER_MAJOR $($parts[0])"
+            "#define APP_VER_MINOR $($parts[1])"
+            "#define APP_VER_PATCH $($parts[2])"
+            "#define APP_VER_BUILD $($parts[3])"
+            ''
+            '// Four-part version string used in VERSIONINFO resources.'
+            ('#define APP_VER_STRING "' + $env:VERSION + '"')
+          )
+          Set-Content -Path 'src\version.h' -Value $lines -Encoding utf8NoBOM
 
-    - name: Create x64 zip archive
-      shell: pwsh
-      run: |
-        $version = "${{ steps.tag.outputs.VERSION }}"
-        $x64Dir = "src/build"
-        $x64Zip = "Extensions-x64-$version.zip"
-        
-        if (Test-Path $x64Dir) {
-            # Create a temporary directory with the files
-            $tempDir = "temp_x64"
-            New-Item -ItemType Directory -Path $tempDir -Force
-            
-            # Copy x64 build files
-            Copy-Item "$x64Dir\ExplorerEnhancement_x64.dll" $tempDir
-            Copy-Item "$x64Dir\ExplorerEnhancementManager_x64.exe" $tempDir
-            
-            # Create the zip file
-            Compress-Archive -Path "$tempDir\*" -DestinationPath $x64Zip -Force
-            
-            # Clean up
-            Remove-Item $tempDir -Recurse -Force
-            
-            Write-Host "Created x64 archive: $x64Zip"
-        } else {
-            Write-Warning "x64 build directory not found: $x64Dir"
-        }
-    
-    - name: Draft Release
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: "Extensions-*.zip,ExplorerExtensionSetup.exe"
-        bodyFile: "doc/release_body.md"
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+      - name: Build x86
+        shell: pwsh
+        run: |
+          msbuild /m /p:Configuration=Release /p:Platform=x86 ./src
+          if ($LASTEXITCODE -ne 0) {
+            throw "x86 build failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Build x64
+        shell: pwsh
+        run: |
+          msbuild /m /p:Configuration=Release /p:Platform=x64 ./src
+          if ($LASTEXITCODE -ne 0) {
+            throw "x64 build failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          $expected = @(
+            'src/build/ExplorerEnhancement_x86.dll'
+            'src/build/ExplorerEnhancement_x64.dll'
+            'src/build/ExplorerEnhancementManager_x86.exe'
+            'src/build/ExplorerEnhancementManager_x64.exe'
+          )
+          foreach ($file in $expected) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Expected build output is missing: $file"
+            }
+          }
+
+      - name: Sign binaries
+        shell: pwsh
+        env:
+          PFX_CERTIFICATE: ${{ secrets.PFX_CERTIFICATE }}
+          PFX_PASSWORD: ${{ secrets.PFX_PASSWORD }}
+        run: |
+          if (-not $env:PFX_CERTIFICATE) {
+            throw 'Repository secret PFX_CERTIFICATE is not set.'
+          }
+          if (-not $env:PFX_PASSWORD) {
+            throw 'Repository secret PFX_PASSWORD is not set.'
+          }
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PFX_CERTIFICATE))
+
+          $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -File -ErrorAction SilentlyContinue |
+            Sort-Object -Property FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) {
+            throw 'signtool.exe was not found under the Windows SDK directory.'
+          }
+          $signtoolExe = $signtool.FullName
+
+          $files = @(
+            'src/build/ExplorerEnhancement_x86.dll'
+            'src/build/ExplorerEnhancement_x64.dll'
+            'src/build/ExplorerEnhancementManager_x86.exe'
+            'src/build/ExplorerEnhancementManager_x64.exe'
+          )
+          foreach ($file in $files) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Cannot sign missing file: $file"
+            }
+            & $signtoolExe sign /f $pfxPath /p $env:PFX_PASSWORD /fd SHA256 /tr 'http://timestamp.digicert.com' /td SHA256 $file
+            if ($LASTEXITCODE -ne 0) {
+              throw "Signing failed for $file (exit code $LASTEXITCODE)."
+            }
+          }
+          foreach ($file in $files) {
+            & $signtoolExe verify /pa /q $file
+            if ($LASTEXITCODE -ne 0) {
+              throw "Signature verification failed for $file (exit code $LASTEXITCODE)."
+            }
+          }
+
+      - name: Build installer
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.ver4 }}
+        run: |
+          $makensis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+          if (-not (Test-Path -LiteralPath $makensis)) {
+            $cmd = Get-Command makensis.exe -ErrorAction SilentlyContinue
+            if ($cmd) { $makensis = $cmd.Source } else { $makensis = $null }
+          }
+          if (-not $makensis) {
+            throw 'makensis.exe not found: NSIS is missing from the runner image.'
+          }
+          & $makensis "/DVERSION=$env:VERSION" Installer.nsi
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installer build failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Sign installer
+        shell: pwsh
+        env:
+          PFX_CERTIFICATE: ${{ secrets.PFX_CERTIFICATE }}
+          PFX_PASSWORD: ${{ secrets.PFX_PASSWORD }}
+        run: |
+          if (-not $env:PFX_CERTIFICATE -or -not $env:PFX_PASSWORD) {
+            throw 'Repository secrets PFX_CERTIFICATE and PFX_PASSWORD must be set.'
+          }
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
+          if (-not (Test-Path -LiteralPath $pfxPath)) {
+            throw "Signing certificate not found at $pfxPath; the binary signing step must run first."
+          }
+          $installerPath = 'ExplorerExtensionSetup.exe'
+          if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+            throw "Installer was not built: $installerPath is missing."
+          }
+          $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -File -ErrorAction SilentlyContinue |
+            Sort-Object -Property FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) {
+            throw 'signtool.exe was not found under the Windows SDK directory.'
+          }
+          $signtoolExe = $signtool.FullName
+          & $signtoolExe sign /f $pfxPath /p $env:PFX_PASSWORD /fd SHA256 /tr 'http://timestamp.digicert.com' /td SHA256 $installerPath
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signing failed for $installerPath (exit code $LASTEXITCODE)."
+          }
+          & $signtoolExe verify /pa /q $installerPath
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signature verification failed for $installerPath (exit code $LASTEXITCODE)."
+          }
+
+      - name: Create zip archives
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.ver4 }}
+        run: |
+          $archFiles = @{
+            x86 = @('ExplorerEnhancement_x86.dll', 'ExplorerEnhancementManager_x86.exe')
+            x64 = @('ExplorerEnhancement_x64.dll', 'ExplorerEnhancementManager_x64.exe')
+          }
+          foreach ($arch in @('x86', 'x64')) {
+            $tempDir = Join-Path $env:RUNNER_TEMP "zip-$arch"
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            foreach ($name in $archFiles[$arch]) {
+              Copy-Item -LiteralPath (Join-Path 'src/build' $name) -Destination $tempDir -Force
+            }
+            $zip = "Extensions-$arch-$env:VERSION.zip"
+            Compress-Archive -Path (Join-Path $tempDir '*') -DestinationPath $zip -Force
+            if (-not (Test-Path -LiteralPath $zip -PathType Leaf)) {
+              throw "Archive was not created: $zip"
+            }
+            if ((Get-Item -LiteralPath $zip).Length -le 0) {
+              throw "Archive is empty: $zip"
+            }
+            Remove-Item -LiteralPath $tempDir -Recurse -Force
+          }
+
+      - name: Publish release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
+        with:
+          artifacts: 'Extensions-x86-${{ steps.version.outputs.ver4 }}.zip,Extensions-x64-${{ steps.version.outputs.ver4 }}.zip,ExplorerExtensionSetup.exe,LICENSE.md'
+          bodyFile: doc/release_body.md
+          artifactErrorsFailBuild: true
+          skipIfReleaseExists: true
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
+
+      - name: Cleanup signing key
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item "$env:RUNNER_TEMP\codesign.pfx" -Force -ErrorAction SilentlyContinue

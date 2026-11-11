@@ -1,10 +1,9 @@
-﻿// BreakFolderExt.cpp: CBreakFolderExt 类的实现，用于Windows资源管理器的文件夹操作扩展
+// BreakFolderExt.cpp: CBreakFolderExt 类的实现，用于Windows资源管理器的文件夹操作扩展
 // 功能：将选中文件夹中的所有文件移动到它们的父文件夹中
 
 #include "pch.h"
 #include "BreakFolderExt.h"
 #include "common.h"
-#include <atlpath.h> // 用于 ATL::CPath 类
 
 // CBreakFolderExt 类实现
 
@@ -23,94 +22,48 @@ HRESULT __stdcall CBreakFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDat
 		return E_INVALIDARG;
 	}
 
-	m_selectedFolders.clear();
+	m_folders.clear();
+
 	CComPtr<IShellItemArray> items;
-	CComPtr<IDataObject> dataObj;
-
-	HRESULT hr = pdtobj->QueryInterface(IID_PPV_ARGS(&dataObj));
-	if (SUCCEEDED(hr))
+	HRESULT hr = SHCreateShellItemArrayFromDataObject(pdtobj, IID_PPV_ARGS(&items));
+	if (FAILED(hr))
 	{
-		hr = SHCreateShellItemArrayFromDataObject(pdtobj, IID_PPV_ARGS(&items));
-		if (FAILED(hr))
-		{
-			return hr;
-		}
-	}
-	else
-	{
-		// 如果不能从数据对象创建ShellItemArray，尝试直接查询
-		hr = pdtobj->QueryInterface(IID_PPV_ARGS(&items));
-		if (FAILED(hr))
-		{
-			return hr;
-		}
+		return hr;
 	}
 
-	if (SUCCEEDED(hr))
+	// 获取选中文件的数量
+	DWORD file_count = 0;
+	hr = items->GetCount(&file_count);
+	if (FAILED(hr))
 	{
-		// 获取选中文件的数量
-		DWORD file_count = 0;
-		hr = items->GetCount(&file_count);
+		return hr;
+	}
+
+	// 只保留文件夹项，文件项跳过
+	for (DWORD i = 0; i < file_count; i++)
+	{
+		CComPtr<IShellItem> cur_item; // 当前Shell项目
+		hr = items->GetItemAt(i, &cur_item);
+		if (FAILED(hr) || !cur_item)
+		{
+			continue;
+		}
+
+		SFGAOF sfgaoFlags = SFGAO_FOLDER;
+		hr = cur_item->GetAttributes(SFGAO_FOLDER, &sfgaoFlags);
 		if (FAILED(hr))
 		{
-			return hr;
+			continue;
 		}
 
-		// 限制处理的文件夹数量，防止过多操作
-		const DWORD MAX_FOLDERS_TO_PROCESS = 100;
-		DWORD processed_count = 0;
-
-		// 遍历所有选中的项目，保存文件夹到m_selectedFolders
-		for (DWORD i = 0; i < file_count && processed_count < MAX_FOLDERS_TO_PROCESS; i++)
+		if (sfgaoFlags & SFGAO_FOLDER)
 		{
-			CComPtr<IShellItem> cur_item;  // 当前Shell项目
-			LPWSTR filename_buf = nullptr; // 文件名缓冲区
-
-			// 获取当前项目
-			hr = items->GetItemAt(i, &cur_item);
-			if (FAILED(hr))
-			{
-				continue;
-			}
-
-			// 获取项目的绝对路径
-			hr = cur_item->GetDisplayName(SIGDN::SIGDN_DESKTOPABSOLUTEPARSING, &filename_buf);
-			if (SUCCEEDED(hr) && filename_buf)
-			{
-				// 验证路径的有效性
-				if (filename_buf[0] == L'\0')
-				{
-					CoTaskMemFree(filename_buf);
-					continue;
-				}
-
-				// 检查路径长度，防止过长路径
-				if (wcslen(filename_buf) >= MAX_PATH)
-				{
-					CoTaskMemFree(filename_buf);
-					continue;
-				}
-
-				// 检查是否为文件夹
-				if (PathIsDirectoryW(filename_buf))
-				{
-					// 额外验证路径是否有效
-					WIN32_FIND_DATAW findData;
-					HANDLE hFind = FindFirstFileW(filename_buf, &findData);
-					if (hFind != INVALID_HANDLE_VALUE)
-					{
-						FindClose(hFind);
-						m_selectedFolders.push_back(filename_buf);
-						processed_count++;
-					}
-				}
-				// 释放文件名缓冲区
-				CoTaskMemFree(filename_buf);
-			}
+			m_folders.push_back(cur_item);
 		}
-		return S_OK;
 	}
-	return hr;
+
+	// 没有文件夹项时隐藏菜单
+	return m_folders.empty() ? E_INVALIDARG : S_OK;
 }
 
 /**
@@ -129,14 +82,6 @@ HRESULT __stdcall CBreakFolderExt::QueryContextMenu(HMENU hmenu, UINT indexMenu,
 	if (uFlags & CMF_DEFAULTONLY)
 		return E_FAIL;
 
-	// 菜单项启用状态
-	bool enabled = true;
-	if (!enabled)
-	{
-		// 菜单项未启用，返回空结果
-		return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
-	}
-
 	// 如果图标未加载，加载图标
 	if (!m_hBitmap)
 	{
@@ -149,9 +94,11 @@ HRESULT __stdcall CBreakFolderExt::QueryContextMenu(HMENU hmenu, UINT indexMenu,
 	mii.fMask = MIIM_STRING | MIIM_FTYPE | MIIM_ID | MIIM_BITMAP;
 	mii.fType = MFT_STRING;
 	mii.hbmpItem = m_hBitmap;
-	mii.dwTypeData = m_contextMenuName.AllocSysString();
+	BSTR menu_name = m_contextMenuName.AllocSysString();
+	mii.dwTypeData = menu_name;
 	mii.wID = idCmdFirst++;
-	InsertMenuItem(hmenu, 0, TRUE, (LPCMENUITEMINFO)&mii);
+	InsertMenuItem(hmenu, indexMenu, TRUE, (LPCMENUITEMINFO)&mii);
+	SysFreeString(menu_name);
 
 	return MAKE_HRESULT(SEVERITY_SUCCESS, FACILITY_NULL, 1);
 }
@@ -201,8 +148,7 @@ HRESULT __stdcall CBreakFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, 
 		const wchar_t* helpText = L"Break folders and move files to parent folder";
 		if (pszName && cchMax > 0)
 		{
-			// Convert wide string to char string for the output buffer
-			wcstombs_s(nullptr, pszName, cchMax, helpText, _TRUNCATE);
+			wcscpy_s(reinterpret_cast<LPWSTR>(pszName), cchMax, helpText);
 			return S_OK;
 		}
 	}
@@ -222,8 +168,7 @@ HRESULT __stdcall CBreakFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, 
 		const wchar_t* verb = L"BreakFoldersPlus";
 		if (pszName && cchMax > 0)
 		{
-			// Convert wide string to char string for the output buffer
-			wcstombs_s(nullptr, pszName, cchMax, verb, _TRUNCATE);
+			wcscpy_s(reinterpret_cast<LPWSTR>(pszName), cchMax, verb);
 			return S_OK;
 		}
 	}
@@ -233,147 +178,129 @@ HRESULT __stdcall CBreakFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, 
 
 /**
  * @brief 执行文件夹打破操作的核心逻辑
- * 将选中文件夹中的所有文件移动到它们的父文件夹
+ * 将每个选中文件夹中的全部文件（含子文件夹中的文件）移动到该文件夹自己的父文件夹
  * @return S_OK 操作成功，否则返回错误码
  */
 HRESULT CBreakFolderExt::OnBreakFoldersTriggered()
 {
-	CComPtr<IFileOperation> pfo;
-	HRESULT hr;
-	if (SUCCEEDED(CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo))))
+	// 检查是否有选中的文件夹
+	if (m_folders.empty())
 	{
-		HWND hwnd = GetActiveWindow(); // 获取活动窗口句柄
-		pfo->SetOwnerWindow(hwnd);	   // 设置文件操作的所有者窗口
-		// 设置文件操作标志：允许撤销、简单进度、创建文件夹时不确认
-		pfo->SetOperationFlags(FOF_ALLOWUNDO | FOF_SIMPLEPROGRESS | FOF_NOCONFIRMMKDIR);
+		return E_INVALIDARG;
+	}
 
-		// 检查是否有选中的文件夹
-		if (m_selectedFolders.empty())
+	CComPtr<IFileOperation> pfo;
+	HRESULT hr = CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo));
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	HWND hwnd = GetActiveWindow(); // 获取活动窗口句柄
+	pfo->SetOwnerWindow(hwnd);	   // 设置文件操作的所有者窗口
+	// 设置文件操作标志：允许撤销、简单进度、创建文件夹时不确认
+	pfo->SetOperationFlags(FOF_ALLOWUNDO | FOF_SIMPLEPROGRESS | FOF_NOCONFIRMMKDIR);
+
+	HRESULT move_hr = S_OK;
+	UINT failed_count = 0;
+
+	// 每个文件夹的目标是它自己的父目录，多选不同目录时也正确
+	for (const auto &folder : m_folders)
+	{
+		CComPtr<IShellItem> dest_folder;
+		if (FAILED(folder->GetParent(&dest_folder)) || !dest_folder)
 		{
-			return E_INVALIDARG;
+			if (SUCCEEDED(move_hr))
+			{
+				move_hr = E_FAIL;
+			}
+			failed_count++;
+			continue;
 		}
 
-		// 获取第一个选中文件夹的父路径作为目标路径
-		ATL::CPath basePath(m_selectedFolders[0].c_str());
-		basePath.RemoveFileSpec(); // 获取父路径
-
-		CComPtr<IShellItem> pDstDir; // 目标文件夹Shell项目
-
-		// 从路径创建目标文件夹Shell项目
-		hr = SHCreateItemFromParsingName(basePath, NULL, IID_PPV_ARGS(&pDstDir));
-		if (FAILED(hr))
-			return hr;
-
-		// 遍历所有选中的文件夹
-		for (const auto &folderPath : m_selectedFolders)
+		// 迭代遍历整棵目录树，收集所有文件（空文件夹保留在原处）
+		std::vector<CComPtr<IShellItem>> pending;
+		std::vector<CComPtr<IShellItem>> files;
+		pending.push_back(folder);
+		while (!pending.empty())
 		{
-			// 使用Shell API递归遍历文件夹
-			CComPtr<IShellItem> pFolder;
-			hr = SHCreateItemFromParsingName(folderPath.c_str(), NULL, IID_PPV_ARGS(&pFolder));
-			if (FAILED(hr))
-				continue;
+			CComPtr<IShellItem> current = pending.back();
+			pending.pop_back();
 
-			// 使用IEnumShellItems递归遍历文件夹内容
-			CComPtr<IEnumShellItems> pEnum;
-			hr = pFolder->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pEnum));
+			CComPtr<IEnumShellItems> enumerator;
+			hr = current->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&enumerator));
 			if (FAILED(hr))
-				continue; 
-
-			CComPtr<IShellItem> pItem;
-			while (pEnum->Next(1, &pItem, NULL) == S_OK)
 			{
-				// 检查当前项目是否为文件夹
+				continue;
+			}
+
+			for (;;)
+			{
+				CComPtr<IShellItem> child;
+				if (enumerator->Next(1, &child, NULL) != S_OK)
+				{
+					break;
+				}
+
 				SFGAOF sfgaoFlags = SFGAO_FOLDER;
-				hr = pItem->GetAttributes(SFGAO_FOLDER, &sfgaoFlags);
+				hr = child->GetAttributes(SFGAO_FOLDER, &sfgaoFlags);
 				if (FAILED(hr))
 				{
-					pItem = NULL;
 					continue;
 				}
 
 				if (sfgaoFlags & SFGAO_FOLDER)
 				{
-					// 是文件夹，递归处理
-					CComPtr<IEnumShellItems> pSubEnum;
-					hr = pItem->BindToHandler(NULL, BHID_EnumItems, IID_PPV_ARGS(&pSubEnum));
-					if (FAILED(hr))
-					{
-						pItem = NULL;
-						continue;
-					}
-
-					CComPtr<IShellItem> pSubItem;
-					while (pSubEnum->Next(1, &pSubItem, NULL) == S_OK)
-					{
-						// 获取子项目路径
-						LPWSTR subItemPath = NULL;
-						hr = pSubItem->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &subItemPath);
-						if (FAILED(hr))
-						{
-							pSubItem = NULL;
-							continue;
-						}
-
-						// 获取子项目文件名
-						LPWSTR subItemName = NULL;
-						hr = pSubItem->GetDisplayName(SIGDN_FILESYSPATH, &subItemName);
-						if (FAILED(hr))
-						{
-							CoTaskMemFree(subItemPath);
-							pSubItem = NULL;
-							continue;
-						}
-
-						// 提取文件名
-						ATL::CPath subItemPathObj(subItemName);
-						LPWSTR fileName = ::PathFindFileNameW(subItemName);
-
-						// 将文件移动到目标文件夹
-						hr = pfo->MoveItem(pSubItem, pDstDir, fileName, NULL);
-
-						// 释放资源
-						CoTaskMemFree(subItemPath);
-						CoTaskMemFree(subItemName);
-						pSubItem = NULL;
-					}
+					pending.push_back(child);
 				}
 				else
 				{
-					// 是文件，直接移动
-					// 获取文件名
-					LPWSTR itemName = NULL;
-					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &itemName);
-					if (FAILED(hr))
-					{
-						pItem = NULL;
-						continue;
-					}
-
-					// 提取文件名
-					ATL::CPath itemPathObj(itemName);
-					LPWSTR fileName = ::PathFindFileNameW(itemName);
-
-					// 将文件移动到目标文件夹
-					hr = pfo->MoveItem(pItem, pDstDir, fileName, NULL);
-
-					// 释放资源
-					CoTaskMemFree(itemName);
+					files.push_back(child);
 				}
-
-				pItem = NULL;
 			}
 		}
 
-		// 执行所有文件操作
-		hr = pfo->PerformOperations();
-		// 通知Shell刷新所有事件
-		SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
-		return S_OK;
+		for (const auto &file : files)
+		{
+			// 新文件名传 nullptr，保持原文件名
+			hr = pfo->MoveItem(file, dest_folder, NULL, NULL);
+			if (FAILED(hr))
+			{
+				if (SUCCEEDED(move_hr))
+				{
+					move_hr = hr;
+				}
+				failed_count++;
+			}
+		}
 	}
-	else
+
+	// 执行所有文件操作
+	hr = pfo->PerformOperations();
+	BOOL aborted = FALSE;
+	HRESULT abort_hr = pfo->GetAnyOperationsAborted(&aborted);
+	// 通知Shell刷新所有事件
+	SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
+
+	if (failed_count > 0 || FAILED(hr) || FAILED(abort_hr) || aborted)
 	{
-		return E_FAIL;
+		HRESULT result = E_ABORT;
+		if (FAILED(hr))
+		{
+			result = hr;
+		}
+		else if (FAILED(move_hr))
+		{
+			result = move_hr;
+		}
+		else if (FAILED(abort_hr))
+		{
+			result = abort_hr;
+		}
+		ShowOperationError(hwnd, result, L"部分或全部文件未能移动");
+		return result;
 	}
+	return S_OK;
 }
 
 /**

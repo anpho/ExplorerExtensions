@@ -1,9 +1,25 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "RegistryHelper.h"
 
 // 定义CLSID常量
 const LPCTSTR CRegistryHelper::m_szBreakFolderCLSID = _T("{f2a0aaf9-2961-4465-a843-884383fcd13b}");
 const LPCTSTR CRegistryHelper::m_szNewFolderCLSID = _T("{c36a65af-0a1e-4e09-9729-6da3e4e4461a}");
+
+namespace
+{
+// 壳会检查该键：值名是 CLSID，存在即表示扩展被停用。
+const TCHAR kBlockedKeyPath[] = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Shell Extensions\\Blocked");
+
+// DLL 的 DllRegisterServer 使用 AtlSetPerUserRegistration(true)，写入 HKCU\Software\Classes。
+bool IsClassRegistered(LPCTSTR clsid)
+{
+    CRegKey key;
+    TCHAR keyPath[256] = {};
+    _sntprintf_s(keyPath, _countof(keyPath), _TRUNCATE,
+                 _T("Software\\Classes\\CLSID\\%s\\InprocServer32"), clsid);
+    return key.Open(HKEY_CURRENT_USER, keyPath, KEY_READ) == ERROR_SUCCESS;
+}
+} // namespace
 
 CRegistryHelper::CRegistryHelper()
 {
@@ -11,6 +27,11 @@ CRegistryHelper::CRegistryHelper()
 
 CRegistryHelper::~CRegistryHelper()
 {
+}
+
+BOOL CRegistryHelper::IsExplorerEnhancementRegistered()
+{
+    return IsClassRegistered(m_szNewFolderCLSID) && IsClassRegistered(m_szBreakFolderCLSID);
 }
 
 BOOL CRegistryHelper::IsBreakFolderEnabled()
@@ -37,51 +58,41 @@ BOOL CRegistryHelper::IsContextMenuEnabled(LPCTSTR lpMenuName)
 {
     CRegKey key;
     LONG lResult;
-    const TCHAR szBlockedKeyPath[] = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Shell Extensions\\Blocked");
 
     // 获取对应的CLSID
-    LPCTSTR lpCLSID = (_tcscmp(lpMenuName, _T("BreakFolder")) == 0) ? 
+    LPCTSTR lpCLSID = (_tcscmp(lpMenuName, _T("BreakFolder")) == 0) ?
         m_szBreakFolderCLSID : m_szNewFolderCLSID;
 
     // 尝试打开Blocked键
-    lResult = key.Open(HKEY_CURRENT_USER, szBlockedKeyPath, KEY_READ);
+    lResult = key.Open(HKEY_CURRENT_USER, kBlockedKeyPath, KEY_READ);
     if (lResult != ERROR_SUCCESS)
     {
         // Blocked键不存在，说明功能已启用
         return TRUE;
     }
 
-    // 检查CLSID是否存在于Blocked键中
+    // 检查CLSID是否存在于Blocked键中（只关心是否存在，不读值）
     DWORD dwType = 0;
     DWORD dwSize = 0;
     lResult = key.QueryValue(lpCLSID, &dwType, NULL, &dwSize);
-    if (lResult == ERROR_SUCCESS)
-    {
-        // CLSID存在于Blocked键中，说明功能已禁用
-        return FALSE;
-    }
-
-    // CLSID不存在于Blocked键中，说明功能已启用
-    return TRUE;
+    return lResult == ERROR_SUCCESS ? FALSE : TRUE;
 }
 
 BOOL CRegistryHelper::SetContextMenuEnabled(LPCTSTR lpMenuName, BOOL bEnable)
 {
     CRegKey key;
     LONG lResult;
-    const TCHAR szBlockedKeyPath[] = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Shell Extensions\\Blocked");
 
     // 获取对应的CLSID
-    LPCTSTR lpCLSID = (_tcscmp(lpMenuName, _T("BreakFolder")) == 0) ? 
+    LPCTSTR lpCLSID = (_tcscmp(lpMenuName, _T("BreakFolder")) == 0) ?
         m_szBreakFolderCLSID : m_szNewFolderCLSID;
 
     if (bEnable)
     {
         // 启用功能：从Blocked键中删除CLSID
-        lResult = key.Open(HKEY_CURRENT_USER, szBlockedKeyPath, KEY_WRITE);
+        lResult = key.Open(HKEY_CURRENT_USER, kBlockedKeyPath, KEY_WRITE);
         if (lResult == ERROR_SUCCESS)
         {
-            // 尝试删除CLSID值
             lResult = key.DeleteValue(lpCLSID);
             if (lResult != ERROR_SUCCESS && lResult != ERROR_FILE_NOT_FOUND)
             {
@@ -90,21 +101,21 @@ BOOL CRegistryHelper::SetContextMenuEnabled(LPCTSTR lpMenuName, BOOL bEnable)
         }
         else if (lResult != ERROR_FILE_NOT_FOUND)
         {
-            // 如果打开失败且不是因为键不存在，返回失败
+            // 打开失败且不是因为键不存在
             return FALSE;
         }
-        // 如果Blocked键不存在，说明功能已经是启用状态
+        // Blocked键不存在时功能本来就是启用的
     }
     else
     {
         // 禁用功能：将CLSID添加到Blocked键中
-        lResult = key.Create(HKEY_CURRENT_USER, szBlockedKeyPath);
+        lResult = key.Create(HKEY_CURRENT_USER, kBlockedKeyPath);
         if (lResult != ERROR_SUCCESS)
         {
             return FALSE;
         }
 
-        // 设置CLSID值（空字符串即可）
+        // 值内容无关紧要，存在即停用
         lResult = key.SetStringValue(lpCLSID, _T(""));
         if (lResult != ERROR_SUCCESS)
         {
@@ -117,8 +128,6 @@ BOOL CRegistryHelper::SetContextMenuEnabled(LPCTSTR lpMenuName, BOOL bEnable)
 
 BOOL CRegistryHelper::RegisterExplorerEnhancementDLL(LPCTSTR lpDllPath)
 {
-    // 这里应该实现DLL的注册逻辑
-    // 通常使用DllRegisterServer函数
     HMODULE hModule = LoadLibrary(lpDllPath);
     if (hModule == NULL)
     {
@@ -126,7 +135,8 @@ BOOL CRegistryHelper::RegisterExplorerEnhancementDLL(LPCTSTR lpDllPath)
     }
 
     typedef HRESULT (WINAPI* LPDLLREGISTERSERVER)(void);
-    LPDLLREGISTERSERVER lpDllRegisterServer = (LPDLLREGISTERSERVER)GetProcAddress(hModule, "DllRegisterServer");
+    LPDLLREGISTERSERVER lpDllRegisterServer =
+        (LPDLLREGISTERSERVER)GetProcAddress(hModule, "DllRegisterServer");
     if (lpDllRegisterServer == NULL)
     {
         FreeLibrary(hModule);
@@ -141,8 +151,6 @@ BOOL CRegistryHelper::RegisterExplorerEnhancementDLL(LPCTSTR lpDllPath)
 
 BOOL CRegistryHelper::UnregisterExplorerEnhancementDLL(LPCTSTR lpDllPath)
 {
-    // 这里应该实现DLL的卸载逻辑
-    // 通常使用DllUnregisterServer函数
     HMODULE hModule = LoadLibrary(lpDllPath);
     if (hModule == NULL)
     {
@@ -150,7 +158,8 @@ BOOL CRegistryHelper::UnregisterExplorerEnhancementDLL(LPCTSTR lpDllPath)
     }
 
     typedef HRESULT (WINAPI* LPDLLUNREGISTERSERVER)(void);
-    LPDLLUNREGISTERSERVER lpDllUnregisterServer = (LPDLLUNREGISTERSERVER)GetProcAddress(hModule, "DllUnregisterServer");
+    LPDLLUNREGISTERSERVER lpDllUnregisterServer =
+        (LPDLLUNREGISTERSERVER)GetProcAddress(hModule, "DllUnregisterServer");
     if (lpDllUnregisterServer == NULL)
     {
         FreeLibrary(hModule);

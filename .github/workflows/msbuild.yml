@@ -1,204 +1,110 @@
-name: MSBuild
+name: Build
 
 on:
   push:
-
+    branches:
+      - master
   pull_request:
-
-
-env:
-  # Path to the solution file relative to the root of the project.
-  SOLUTION_FILE_PATH: ./src
-
-  # Configuration type to build.
-  # You can convert this to a build matrix if you need coverage of multiple configuration types.
-  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-  BUILD_CONFIGURATION: Release
 
 permissions:
   contents: read
+
+concurrency:
+  group: "build-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v6.0.1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
 
-    - name: Restore NuGet packages
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: nuget restore ${{env.SOLUTION_FILE_PATH}}
-
-    - name: Build x86
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      # Build 32-bit version
-      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x86 ${{env.SOLUTION_FILE_PATH}}
-
-    - name: Build x64
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      # Build 64-bit version
-      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
-
-    - name: sign
-      shell: pwsh
-      run: |
-          # 改进的 signtool 查找逻辑
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
-                      Where-Object { $_.DirectoryName -match "\\x64\\" } |
-                      Sort-Object FullName -Descending |
-                      Select-Object -First 1
-
-          # 检查是否找到了 signtool
-          if ($signtool -eq $null) {
-              Write-Host "Attempting alternative search methods..."
-              # 备选方案：搜索所有版本的 Windows SDK
-              $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -File -ErrorAction SilentlyContinue |
-                          Sort-Object FullName -Descending |
-                          Select-Object -First 1
+      - name: Build x86
+        shell: pwsh
+        run: |
+          msbuild /m /p:Configuration=Release /p:Platform=x86 ./src
+          if ($LASTEXITCODE -ne 0) {
+            throw "x86 build failed with exit code $LASTEXITCODE."
           }
 
-          # 如果仍然没有找到，则从环境变量或默认路径查找
-          if ($signtool -eq $null) {
-              Write-Host "Attempting to find signtool in common locations..."
-              $possiblePaths = @(
-                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
-                  "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe",
-                  "${env:ProgramFiles}\Microsoft SDKs\Windows\v*\Bin\Signtool.exe"
-              )
-
-              foreach ($path in $possiblePaths) {
-                  $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
-                  if ($found) {
-                      $signtool = $found
-                      break
-                  }
-              }
+      - name: Build x64
+        shell: pwsh
+        run: |
+          msbuild /m /p:Configuration=Release /p:Platform=x64 ./src
+          if ($LASTEXITCODE -ne 0) {
+            throw "x64 build failed with exit code $LASTEXITCODE."
           }
 
-          # 验证是否找到了 signtool
-          if ($signtool -eq $null) {
-              throw "Could not find signtool.exe in any known location."
-          } else {
-              $signtoolPath = $signtool.FullName
-              Write-Host "Found signtool at: $signtoolPath"
-          }
-
-          $pfxBytes = [Convert]::FromBase64String("${{ secrets.PFX_CERTIFICATE }}")
-          $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"
-          [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
-          Write-Host "PFX certificate restored to: $pfxPath"
-
-          # 确保证书文件已创建且可访问
-          if (-not (Test-Path $pfxPath)) {
-              throw "Certificate file was not created at: $pfxPath"
-          }
-          Write-Host "Certificate file exists and is accessible."
-
-          $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
-          $timestampServer = "http://timestamp.digicert.com"
-
-          # 动态查找所有DLL和EXE文件进行签名
-          $x86BuildDir = "./src/Release"
-          $x64BuildDir = "./src/x64/Release"
-          $filesToSign = @()
-
-          # 查找x86构建输出
-          if (Test-Path $x86BuildDir) {
-              $dllFiles = Get-ChildItem -Path $x86BuildDir -Recurse -Include "*.dll" | ForEach-Object { $_.FullName }
-              $exeFiles = Get-ChildItem -Path $x86BuildDir -Recurse -Include "*.exe" | ForEach-Object { $_.FullName }
-              $filesToSign += $dllFiles + $exeFiles
-          } else {
-              Write-Warning "x86 build directory not found: $x86BuildDir"
-          }
-
-          # 查找x64构建输出
-          if (Test-Path $x64BuildDir) {
-              $dllFiles = Get-ChildItem -Path $x64BuildDir -Recurse -Include "*.dll" | ForEach-Object { $_.FullName }
-              $exeFiles = Get-ChildItem -Path $x64BuildDir -Recurse -Include "*.exe" | ForEach-Object { $_.FullName }
-              $filesToSign += $dllFiles + $exeFiles
-          } else {
-              Write-Warning "x64 build directory not found: $x64BuildDir"
-          }
-
-          # 签名前先检查文件是否存在
-          foreach ($file in $filesToSign) {
-              if (Test-Path $file) {
-                  Write-Host "Signing file: $file"
-                  # 确保参数顺序正确：/f (证书文件) /p (密码) /fd (哈希算法) /t (时间戳服务器) /v (目标文件)
-                  # 直接使用之前定义的 $pfxPath 变量，而不是从环境变量获取
-                  & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "$timestampServer" /v "$file"
-                  if ($LASTEXITCODE -ne 0) {
-                      Write-Warning "Failed to sign file: $file (Exit code: $LASTEXITCODE)"
-                      # 不抛出异常，而是继续处理下一个文件
-                  } else {
-                      Write-Host "Successfully signed: $file"
-                  }
-              } else {
-                  Write-Warning "File not found: $file"
-              }
-          }
-
-    - name: Install NSIS
-      uses: negrutiu/nsis-install@v2
-
-    - name: Build Installer
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: makensis Installer.nsi
-
-    - name: Sign Installer
-      shell: pwsh
-      run: |
-        # 对安装程序进行相同的改进
-        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\" -Recurse -Filter signtool.exe -File -ErrorAction SilentlyContinue |
-                    Where-Object { $_.DirectoryName -match "\\x64\\" } |
-                    Sort-Object FullName -Descending |
-                    Select-Object -First 1
-
-        if ($signtool -eq $null) {
-            $possiblePaths = @(
-                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.*\x64\signtool.exe",
-                "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe"
-            )
-
-            foreach ($path in $possiblePaths) {
-                $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($found) {
-                    $signtool = $found
-                    break
-                }
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          $expected = @(
+            'src/build/ExplorerEnhancement_x86.dll'
+            'src/build/ExplorerEnhancement_x64.dll'
+            'src/build/ExplorerEnhancementManager_x86.exe'
+            'src/build/ExplorerEnhancementManager_x64.exe'
+          )
+          foreach ($file in $expected) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Expected build output is missing: $file"
             }
-        }
+          }
 
-        if ($signtool -eq $null) {
-            throw "Could not find signtool.exe in any known location."
-        } else {
-            $signtoolPath = $signtool.FullName
-            Write-Host "Found signtool at: $signtoolPath"
-        }
-
-        $installerPath = "./ExplorerExtensionSetup.exe"
-        $pfxPath = "$env:RUNNER_TEMP/MyCodeSignCert.pfx"  # 使用与前面相同的路径
-        $pfxPassword = "${{ secrets.PFX_PASSWORD }}"
-
-        if (Test-Path $installerPath) {
-            Write-Host "Signing installer: $installerPath"
-            # 确保参数顺序正确：/f (证书文件) /p (密码) /fd (哈希算法) /t (时间戳服务器) /v (目标文件)
-            & $signtoolPath sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /t "http://timestamp.digicert.com" /v "$installerPath"
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Failed to sign installer: $installerPath (Exit code: $LASTEXITCODE)"
-            } else {
-                Write-Host "Successfully signed installer: $installerPath"
+      - name: Smoke test registration
+        shell: pwsh
+        run: |
+          $manager = Join-Path $PWD 'src\build\ExplorerEnhancementManager_x64.exe'
+          $keys = @(
+            'HKCU:\Software\Classes\CLSID\{c36a65af-0a1e-4e09-9729-6da3e4e4461a}\InprocServer32'
+            'HKCU:\Software\Classes\CLSID\{f2a0aaf9-2961-4465-a843-884383fcd13b}\InprocServer32'
+            'HKCU:\Software\Classes\*\shellex\ContextMenuHandlers\NewFolderExtension'
+            'HKCU:\Software\Classes\Directory\shellex\ContextMenuHandlers\BreakFolder'
+          )
+          $install = Start-Process -FilePath $manager -ArgumentList '/install' -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+            throw "manager /install failed with exit code $($install.ExitCode)."
+          }
+          foreach ($key in $keys) {
+            if (-not (Test-Path -LiteralPath $key)) {
+              throw "Registration key is missing after /install: $key"
             }
-        } else {
-            Write-Warning "Installer not found: $installerPath"
-        }
+          }
+          $uninstall = Start-Process -FilePath $manager -ArgumentList '/uninstall' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+            throw "manager /uninstall failed with exit code $($uninstall.ExitCode)."
+          }
+          foreach ($key in $keys) {
+            if (Test-Path -LiteralPath $key) {
+              throw "Registration key was not removed by /uninstall: $key"
+            }
+          }
 
-    - name: Upload
-      uses: actions/upload-artifact@v6.0.0
-      with:
-        name: WindowsExplorerExtensions_Installer
-        path: |
-          ./ExplorerExtensionSetup.exe
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $makensis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+          if (-not (Test-Path -LiteralPath $makensis)) {
+            $cmd = Get-Command makensis.exe -ErrorAction SilentlyContinue
+            if ($cmd) { $makensis = $cmd.Source } else { $makensis = $null }
+          }
+          if (-not $makensis) {
+            throw 'makensis.exe not found: NSIS is missing from the runner image.'
+          }
+          & $makensis Installer.nsi
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installer build failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ExplorerExtensions_Installer
+          path: ./ExplorerExtensionSetup.exe
+          if-no-files-found: error

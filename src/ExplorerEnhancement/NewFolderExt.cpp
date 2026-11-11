@@ -1,4 +1,4 @@
-﻿// NewFolderExt.cpp: CNewFolderExt 类的实现，用于Windows资源管理器的新建文件夹扩展
+// NewFolderExt.cpp: CNewFolderExt 类的实现，用于Windows资源管理器的新建文件夹扩展
 // 功能：将选中的文件创建到一个新文件夹中，文件夹名基于文件名的共同前缀
 
 #include "pch.h"
@@ -53,7 +53,6 @@ CNewFolderExt::~CNewFolderExt()
 
 	// 释放智能指针和COM对象
 	m_spdo = nullptr;
-	ibindctx = nullptr;
 	if (spsia)
 	{
 		spsia->Release();
@@ -72,14 +71,14 @@ CNewFolderExt::~CNewFolderExt()
  */
 DWORD CNewFolderExt::_ThreadProc()
 {
-	IShellItemArray* psia;
+	IShellItemArray* psia = nullptr;
 	// 从流中获取ShellItemArray接口并释放流
 	HRESULT hr = CoGetInterfaceAndReleaseStream(_pstmShellItemArray, IID_PPV_ARGS(&psia));
 	_pstmShellItemArray = NULL;
 	if (SUCCEEDED(hr))
 	{
 		// 执行创建文件夹和移动文件的操作
-		DoCreateAndMoveItems(NULL, psia);
+		DoCreateAndMoveItems(psia);
 		psia->Release(); // 释放ShellItemArray接口
 	}
 
@@ -115,6 +114,12 @@ HRESULT __stdcall CNewFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDataO
 	m_spdo = pdtobj;
 	// 清空选中文件列表
 	selected_files.clear();
+	// 释放上次初始化留下的ShellItemArray
+	if (spsia)
+	{
+		spsia->Release();
+		spsia = nullptr;
+	}
 
 	// 检查是否存在可移动的文件，如果只存在一项且该项为文件夹，则不显示
 	if (SUCCEEDED(GetShellItemArrayFromDataObject(m_spdo, &spsia)))
@@ -126,16 +131,25 @@ HRESULT __stdcall CNewFolderExt::Initialize(PCIDLIST_ABSOLUTE pidlFolder, IDataO
 		for (DWORD i = 0; i < file_count; i++)
 		{
 			CComPtr<IShellItem> current_item;
-			LPWSTR filename_buffer;
+			LPWSTR filename_buffer = nullptr;
 			// 获取当前选中项
-			spsia->GetItemAt(i, &current_item);
+			if (FAILED(spsia->GetItemAt(i, &current_item)) || !current_item)
+			{
+				continue;
+			}
 			// 获取当前项的绝对路径
-			current_item->GetDisplayName(SIGDN::SIGDN_DESKTOPABSOLUTEPARSING, &filename_buffer);
-
-			ATL::CString item_name(filename_buffer);
-			selected_files.push_back(item_name);
+			if (SUCCEEDED(current_item->GetDisplayName(SIGDN::SIGDN_DESKTOPABSOLUTEPARSING, &filename_buffer)) && filename_buffer)
+			{
+				selected_files.emplace_back(filename_buffer);
+			}
 			// 释放文件名缓冲区
 			CoTaskMemFree(filename_buffer);
+		}
+
+		// 没有可处理的项时隐藏菜单项
+		if (selected_files.empty())
+		{
+			return E_FAIL;
 		}
 
 		// 如果只选中了一个文件夹，不显示菜单项；只选中一个文件则可以显示
@@ -198,14 +212,6 @@ HRESULT __stdcall CNewFolderExt::QueryContextMenu(HMENU hmenu, UINT indexMenu, U
 		return E_FAIL;
 	}
 
-	// 从注册表获取菜单项启用状态
-	DWORD enabled = RegGetDword(HKEY_CURRENT_USER, M_REG_BASEKEY, M_REG_ENABLE_NEWFOLDER);
-	if (!enabled)
-	{
-		// 菜单项未启用，返回空结果
-		return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
-	}
-
 	// 检查命令ID范围是否有效
 	if (idCmdFirst >= idCmdLast)
 	{
@@ -221,8 +227,8 @@ HRESULT __stdcall CNewFolderExt::QueryContextMenu(HMENU hmenu, UINT indexMenu, U
 	mii.wID = idCmdFirst;										  // 菜单项命令ID
 	mii.hbmpItem = m_icon;										  // 菜单项图标
 
-	// 插入菜单项到菜单开头
-	InsertMenuItem(hmenu, 0, TRUE, (LPCMENUITEMINFO)&mii);
+	// 插入菜单项到指定位置
+	InsertMenuItem(hmenu, indexMenu, TRUE, (LPCMENUITEMINFO)&mii);
 
 	// 释放缓冲区
 	m_contextmenu_name.ReleaseBuffer();
@@ -266,15 +272,14 @@ HRESULT __stdcall CNewFolderExt::InvokeCommand(CMINVOKECOMMANDINFO* pici)
 /// <summary>
 /// 执行创建文件夹并将选择项移动到文件夹内的操作
 /// </summary>
-/// <param name="pici"></param>
-/// <param name="psiItemArray"></param>
-/// <returns></returns>
-HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici, IShellItemArray* psiItemArray)
+/// <param name="psiItemArray">选中的Shell项目数组</param>
+/// <returns>HRESULT 操作结果</returns>
+HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(IShellItemArray* psiItemArray)
 {
 	HRESULT hr = E_FAIL;
 
 	// 检查输入参数
-	if (selected_files.empty()) {
+	if (!psiItemArray || selected_files.empty()) {
 		return E_INVALIDARG; // 没有选中的文件
 	}
 
@@ -284,41 +289,25 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 		// 如果没有共同前导子串，那么以第一个文件的文件名为目录名
 		if (common_part.Trim().GetLength() == 0)
 		{
-			if (selected_files.empty()) {
-				return E_UNEXPECTED; // 没有文件可供处理
-			}
 			common_part = extract_filename_without_ext(selected_files.at(0));
-			/*srand(timeGetTime());
-			common_part.Append(L"-");
-			common_part.Append(std::to_wstring(rand() * 7 % 100).c_str());*/
 		}
-	}
-
-	// 初始化COM
-	hr = CoInitialize(NULL);
-	if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) {
-		return hr; // 如果不是因为已经初始化而失败，则返回错误
 	}
 
 	CComPtr<IFileOperation> pfo;
 	hr = CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo));
 	if (FAILED(hr)) {
-		CoUninitialize();
 		return hr;
 	}
 
-	// 此处似乎不应该使用pici->hwnd，待考
-	HWND hwnd = pici ? pici->hwnd : GetActiveWindow();
+	HWND hwnd = GetActiveWindow();
 	hr = pfo->SetOwnerWindow(hwnd);
 	if (FAILED(hr)) {
-		CoUninitialize();
 		return hr;
 	}
 
 	// 设置一下Pfo的标志位，此处不设置也可
 	hr = pfo->SetOperationFlags(FOF_ALLOWUNDO | FOF_SIMPLEPROGRESS | FOF_NOCONFIRMMKDIR);
 	if (FAILED(hr)) {
-		CoUninitialize();
 		return hr;
 	}
 
@@ -328,28 +317,28 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 
 	// 验证路径有效性
 	if (path_of_the_new_folder.IsEmpty()) {
-		CoUninitialize();
 		return E_INVALIDARG;
 	}
 
 	if (!PathIsDirectoryW(path_of_the_new_folder.GetString()))
 	{
 		// 如果目标文件夹不存在的话，就创建一个
-		//  使用CreateDirectoryW支持UNC路径
-		BOOL rs = CreateDirectoryW(path_of_the_new_folder.GetString(), NULL);
-		if (!rs)
+		// 使用CreateDirectoryW支持UNC路径
+		DWORD create_error = ERROR_SUCCESS;
+		if (!CreateDirectoryW(path_of_the_new_folder.GetString(), NULL))
 		{
-			DWORD error = GetLastError();
+			create_error = GetLastError();
 			// 如果是因为路径不存在（对于UNC路径可能需要递归创建），使用SHCreateDirectoryEx
-			if (error == ERROR_PATH_NOT_FOUND)
+			if (create_error == ERROR_PATH_NOT_FOUND)
 			{
-				rs = SHCreateDirectoryExW(NULL, path_of_the_new_folder.GetString(), NULL) == ERROR_SUCCESS;
+				// 该函数直接返回错误码，不能再用GetLastError
+				create_error = static_cast<DWORD>(SHCreateDirectoryExW(NULL, path_of_the_new_folder.GetString(), NULL));
 			}
-			if (!rs)
-			{
-				CoUninitialize();
-				return HRESULT_FROM_WIN32(GetLastError());
-			}
+		}
+		if (create_error != ERROR_SUCCESS)
+		{
+			ShowOperationError(hwnd, HRESULT_FROM_WIN32(create_error), L"无法创建目标文件夹");
+			return HRESULT_FROM_WIN32(create_error);
 		}
 		// 通知Shell
 		SHChangeNotify(SHCNE_MKDIR, SHCNF_PATHW, path_of_the_new_folder.GetString(), NULL);
@@ -358,75 +347,55 @@ HRESULT __stdcall CNewFolderExt::DoCreateAndMoveItems(CMINVOKECOMMANDINFO* pici,
 	// 把目标文件夹创建为IShellItem，给pfo使用
 	hr = SHCreateItemFromParsingName(path_of_the_new_folder.GetString(), NULL, IID_PPV_ARGS(&pDstFolder));
 	if (FAILED(hr)) {
-		CoUninitialize();
+		ShowOperationError(hwnd, hr, L"无法打开目标文件夹");
 		return hr;
 	}
 
-	if (!psiItemArray)
-	{
-		for (auto iter = selected_files.begin(); iter != selected_files.end(); iter++)
-		{
-			// 避免同名文件夹移动
-			if ((*iter).CompareNoCase(path_of_the_new_folder) == 0)
-			{
-				continue;
-			}
-			CComPtr<IShellItem> pitem;
-			hr = SHCreateItemFromParsingName((*iter).GetString(), NULL, IID_PPV_ARGS(&pitem));
-			if (SUCCEEDED(hr))
-			{
-				hr = pfo->MoveItem(pitem, pDstFolder, extract_filename((*iter)).GetString(), NULL);
-				if (SUCCEEDED(hr)) {
-					/*
-					 * 2022/3/18 对于每一个移动的文件，向shell发送通知
-					 */
-					SHChangeNotify(SHCNE_DELETE, SHCNF_IDLIST, pitem, NULL);
-				}
-			}
-		}
+	hr = pfo->MoveItems(psiItemArray, pDstFolder);
+	if (FAILED(hr)) {
+		ShowOperationError(hwnd, hr, L"无法移动选中的项目");
+		return hr;
 	}
-	else
-	{
-		hr = pfo->MoveItems(psiItemArray, pDstFolder);
-		if (FAILED(hr)) {
-			CoUninitialize();
-			return hr;
-		}
-	}
-
-	// 通知所有事件
-	SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
 
 	// 执行pfo操作
 	hr = pfo->PerformOperations();
+	// 通知所有事件
+	SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_FLUSHNOWAIT, NULL, NULL);
+	if (FAILED(hr)) {
+		ShowOperationError(hwnd, hr, L"文件操作失败");
+		return hr;
+	}
 
-	// 无论操作成功与否，都要清理COM
-	CoUninitialize();
-
-	// 异步调用selectItem，不等待其完成
-	HANDLE hThread = (HANDLE)_beginthreadex(NULL, 0, selectItem, &path_of_the_new_folder, 0, NULL);
+	// 异步调用selectItem，线程负责释放路径字符串
+	ATL::CString* folder_to_select = new ATL::CString(path_of_the_new_folder);
+	HANDLE hThread = (HANDLE)_beginthreadex(NULL, 0, selectItem, folder_to_select, 0, NULL);
 	if (hThread) {
 		CloseHandle(hThread); // 不需要等待线程完成，只是启动它
 	}
+	else {
+		delete folder_to_select;
+	}
 
-	return hr;
+	return S_OK;
 }
 /// <summary>
-/// 以线程方式执行选中并重命名操作，目前大部分情况下可用
+/// 以线程方式选中新创建的文件夹
 /// </summary>
-/// <param name="pArguments">threadParam结构</param>
+/// <param name="pArguments">新文件夹路径（CString*，由本函数释放）</param>
 /// <returns></returns>
 unsigned __stdcall selectItem(void* pArguments)
 {
+	// 先复制并释放调用方分配的路径，避免线程未及时启动时泄漏
+	ATL::CString* path = static_cast<ATL::CString*>(pArguments);
+	if (!path) {
+		return 0; // 参数为空指针
+	}
+	ATL::CString folder_to_select = *path;
+	delete path;
+
 	HRESULT hr = CoInitialize(NULL);
 	if (FAILED(hr)) {
 		return static_cast<unsigned>(hr);
-	}
-
-	ATL::CString* folder_to_select = static_cast<ATL::CString*>(pArguments);
-	if (!folder_to_select) {
-		CoUninitialize();
-		return E_POINTER; // 参数为空指针
 	}
 
 	CComPtr<IShellWindows> shellwindow;
@@ -462,89 +431,86 @@ unsigned __stdcall selectItem(void* pArguments)
 
 		HWND hwba;
 		hr = pwba->get_HWND((LONG_PTR*)&hwba);
-		if (SUCCEEDED(hr))
+		if (FAILED(hr))
 		{
-			CComPtr<IServiceProvider> psp;
-			hr = pwba->QueryInterface(IID_PPV_ARGS(&psp));
-			if (FAILED(hr))
+			continue;
+		}
+
+		CComPtr<IServiceProvider> psp;
+		hr = pwba->QueryInterface(IID_PPV_ARGS(&psp));
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		CComPtr<IShellBrowser> psb;
+		hr = psp->QueryService(SID_STopLevelBrowser, IID_PPV_ARGS(&psb));
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		CComPtr<IShellView> psv;
+		hr = psb->QueryActiveShellView(&psv);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		psv->Refresh();
+
+		CComPtr<IFolderView2> pfv;
+		hr = psv->QueryInterface(IID_PPV_ARGS(&pfv));
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		CComPtr<IShellItemArray> items;
+		hr = pfv->Items(SVGIO_ALLVIEW, IID_PPV_ARGS(&items));
+		if (FAILED(hr) || !items)
+		{
+			continue;
+		}
+
+		DWORD itemCount = 0;
+		hr = items->GetCount(&itemCount);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		for (DWORD j = 0; j < itemCount; j++)
+		{
+			CComPtr<IShellItem> item;
+			hr = items->GetItemAt(j, &item);
+			if (FAILED(hr) || !item)
 			{
 				continue;
 			}
 
-			CComPtr<IShellBrowser> psb;
-			hr = psp->QueryService(SID_STopLevelBrowser, IID_PPV_ARGS(&psb));
-			if (FAILED(hr))
+			LPWSTR filename = nullptr;
+			hr = item->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &filename);
+			if (FAILED(hr) || !filename)
+			{
+				// 释放获取的文件名
+				CoTaskMemFree(filename);
+				continue;
+			}
+
+			ATL::CPath fpath(filename);
+			fpath.Canonicalize();
+			const bool matched = fpath.m_strPath.CompareNoCase(folder_to_select) == 0;
+			// 释放获取的文件名
+			CoTaskMemFree(filename);
+			if (!matched)
 			{
 				continue;
 			}
 
-			CComPtr<IShellView> psv;
-			hr = psb->QueryActiveShellView(&psv);
-			if (FAILED(hr))
-			{
-				continue;
-			}
-
-			psv->Refresh();
-
-			CComPtr<IFolderView2> pfv;
-			hr = psv->QueryInterface(IID_PPV_ARGS(&pfv));
-			if (FAILED(hr))
-			{
-				continue;
-			}
-
-			CComPtr<IShellItemArray> items;
-			hr = pfv->Items(SVGIO_ALLVIEW, IID_PPV_ARGS(&items));
-			if (SUCCEEDED(hr))
-			{
-				DWORD itemCount = 0;
-				hr = items->GetCount(&itemCount);
-				if (SUCCEEDED(hr))
-				{
-					for (DWORD j = 0; j < itemCount; j++)
-					{
-						IShellItem* _item = nullptr;
-						hr = items->GetItemAt(j, &_item);
-						if (SUCCEEDED(hr) && _item)
-						{
-							LPWSTR filename = NULL;
-							hr = _item->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &filename);
-							if (SUCCEEDED(hr) && filename)
-							{
-								ATL::CPath fpath(filename);
-								fpath.Canonicalize();
-
-								if (fpath.m_strPath.CompareNoCase(*folder_to_select) == 0)
-								{
-									try
-									{
-										hr = pfv->SelectItem(j, SVSI_EDIT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_POSITIONITEM);
-										if (SUCCEEDED(hr))
-										{
-											CoUninitialize();
-											return 0; // 成功
-										}
-									}
-									catch (...)
-									{
-										CoUninitialize();
-										return static_cast<unsigned>(E_UNEXPECTED);
-									}
-
-									// 释放获取的文件名
-									CoTaskMemFree(filename);
-								}
-								else
-								{
-									// 释放获取的文件名
-									CoTaskMemFree(filename);
-								}
-							}
-						}
-					}
-				}
-			}
+			hr = pfv->SelectItem(j, SVSI_EDIT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_POSITIONITEM);
+			CoUninitialize();
+			return SUCCEEDED(hr) ? 0u : static_cast<unsigned>(hr);
 		}
 	}
 
@@ -598,8 +564,7 @@ ATL::CString CNewFolderExt::longestCommonPrefix(const std::vector<ATL::CString>&
 
 	ATL::CString base = strs[0];
 	int common_prefix_length = base.GetLength();
-	// 只比较前10个字符串，避免过多计算
-	for (size_t i = 1; i < min(10, strs.size()); i++)
+	for (size_t i = 1; i < strs.size(); i++)
 	{
 		common_prefix_length = first_common_substring_length(base, strs[i], common_prefix_length);
 	}
@@ -644,18 +609,6 @@ ATL::CString CNewFolderExt::find_common_prefix(const std::vector<ATL::CString> f
 }
 
 /// <summary>
-/// 提取文件名（含扩展名）
-/// </summary>
-/// <param name="filepath"></param>
-/// <returns></returns>
-ATL::CString CNewFolderExt::extract_filename(const ATL::CString filepath)
-{
-	ATL::CPath path(filepath);
-	path.StripPath();
-	return ATL::CString(path);
-}
-
-/// <summary>
 /// 提取文件名（不含扩展名）
 /// </summary>
 /// <param name="filepath"></param>
@@ -666,20 +619,6 @@ ATL::CString CNewFolderExt::extract_filename_without_ext(const ATL::CString file
 	path.StripPath();
 	path.RemoveExtension();
 	return path;
-}
-
-/// <summary>
-/// 将src_path 调整到 new_base_folder文件夹下
-/// </summary>
-/// <param name="src_path"></param>
-/// <param name="new_base_folder"></param>
-/// <returns></returns>
-ATL::CString CNewFolderExt::rebase_path(ATL::CString src_path, ATL::CString new_base_folder)
-{
-	ATL::CString filename = extract_filename(src_path);
-	ATL::CPath new_path(new_base_folder);
-	new_path.Combine(new_path, filename);
-	return ATL::CString(new_path);
 }
 
 /// <summary>
@@ -714,12 +653,7 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 		const wchar_t* helpText = L"Create a new folder with selected items";
 		if (pszName && cchMax > 0)
 		{
-			// Convert wide string to char string for the output buffer
-			size_t converted = 0;
-			errno_t err = wcstombs_s(&converted, pszName, cchMax, helpText, _TRUNCATE);
-			if (err != 0) {
-				return E_FAIL; // 转换失败
-			}
+			wcscpy_s(reinterpret_cast<LPWSTR>(pszName), cchMax, helpText);
 			return S_OK;
 		}
 	}
@@ -739,12 +673,7 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 		const wchar_t* verb = L"NewFolderPlus";
 		if (pszName && cchMax > 0)
 		{
-			// Convert wide string to char string for the output buffer
-			size_t converted = 0;
-			errno_t err = wcstombs_s(&converted, pszName, cchMax, verb, _TRUNCATE);
-			if (err != 0) {
-				return E_FAIL; // 转换失败
-			}
+			wcscpy_s(reinterpret_cast<LPWSTR>(pszName), cchMax, verb);
 			return S_OK;
 		}
 	}
@@ -755,89 +684,4 @@ HRESULT __stdcall CNewFolderExt::GetCommandString(UINT_PTR idCmd, UINT uType, UI
 	}
 
 	return S_OK; // Return S_OK when not handling specific types
-}
-
-HRESULT __stdcall CNewFolderExt::GetTitle(IShellItemArray* psiItemArray, LPWSTR* ppszName)
-{
-	UNREFERENCED_PARAMETER(psiItemArray);
-	*ppszName = nullptr;
-	auto title = wil::make_cotaskmem_string_nothrow(m_contextmenu_name.GetString());
-	RETURN_IF_NULL_ALLOC(title);
-	*ppszName = title.release();
-	return S_OK;
-}
-
-HRESULT __stdcall CNewFolderExt::GetIcon(IShellItemArray* psiItemArray, LPWSTR* ppszIcon)
-{
-	UNREFERENCED_PARAMETER(psiItemArray);
-	*ppszIcon = nullptr;
-	auto path = wil::make_cotaskmem_string_nothrow(L"%systemroot%\\system32\\shell32.dll, -20");
-	RETURN_IF_NULL_ALLOC(path);
-	*ppszIcon = path.release();
-	return S_OK;
-}
-
-HRESULT __stdcall CNewFolderExt::GetToolTip(IShellItemArray* psiItemArray, LPWSTR* ppszInfotip)
-{
-	// Provide tooltip information for the command
-	*ppszInfotip = nullptr;
-
-	// Create tooltip text
-	const wchar_t* tooltipText = L"Create a new folder and move selected items into it";
-
-	// Allocate memory for the tooltip string using CoTaskMemAlloc
-	LPWSTR tooltip = static_cast<LPWSTR>(CoTaskMemAlloc((wcslen(tooltipText) + 1) * sizeof(wchar_t)));
-	if (!tooltip)
-	{
-		return E_OUTOFMEMORY;
-	}
-
-	// Copy the tooltip text
-	wcscpy_s(tooltip, wcslen(tooltipText) + 1, tooltipText);
-
-	// Assign the tooltip to the output parameter
-	*ppszInfotip = tooltip;
-
-	return S_OK;
-}
-
-HRESULT __stdcall CNewFolderExt::GetCanonicalName(GUID* pguidCommandName)
-{
-	*pguidCommandName = __uuidof(NewFolderExt);
-	return S_OK;
-}
-
-HRESULT __stdcall CNewFolderExt::GetState(IShellItemArray* psiItemArray, BOOL fOkToBeSlow, EXPCMDSTATE* pCmdState)
-{
-	// Check registry setting to determine if this command should be enabled
-	UNREFERENCED_PARAMETER(psiItemArray);
-	DWORD enabled = RegGetDword(HKEY_CURRENT_USER, M_REG_BASEKEY, M_REG_ENABLE_NEWFOLDER);
-	if (!enabled)
-	{
-		*pCmdState = ECS_HIDDEN;
-	}
-	else
-	{
-		*pCmdState = ECS_ENABLED;
-	}
-	return S_OK;
-}
-
-HRESULT __stdcall CNewFolderExt::Invoke(IShellItemArray* psiItemArray, IBindCtx* pbc)
-{
-	ibindctx = pbc;
-	return DoCreateAndMoveItems(nullptr, psiItemArray);
-}
-
-HRESULT __stdcall CNewFolderExt::GetFlags(EXPCMDFLAGS* pFlags)
-{
-	*pFlags = ECF_DEFAULT;
-	return S_OK;
-}
-
-HRESULT __stdcall CNewFolderExt::EnumSubCommands(IEnumExplorerCommand** ppEnum)
-{
-	// This command doesn't have subcommands, so return a null enumerator
-	*ppEnum = nullptr;
-	return S_OK;  // S_OK with a null enumerator indicates no subcommands
 }
