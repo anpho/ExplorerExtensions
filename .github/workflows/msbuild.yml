@@ -64,17 +64,31 @@ jobs:
         shell: pwsh
         run: |
           $manager = Join-Path $PWD 'src\build\ExplorerEnhancementManager_x64.exe'
-          $keys = @(
-            'HKCU:\Software\Classes\CLSID\{c36a65af-0a1e-4e09-9729-6da3e4e4461a}\InprocServer32'
-            'HKCU:\Software\Classes\CLSID\{f2a0aaf9-2961-4465-a843-884383fcd13b}\InprocServer32'
-            'HKCU:\Software\Classes\*\shellex\ContextMenuHandlers\NewFolderExtension'
-            'HKCU:\Software\Classes\Directory\shellex\ContextMenuHandlers\BreakFolder'
+          # /install registers under HKCU for a normal user and under HKLM when the
+          # process is elevated (GitHub-hosted runners run elevated), so check both.
+          $relativeKeys = @(
+            'Software\Classes\CLSID\{c36a65af-0a1e-4e09-9729-6da3e4e4461a}\InprocServer32'
+            'Software\Classes\CLSID\{f2a0aaf9-2961-4465-a843-884383fcd13b}\InprocServer32'
+            'Software\Classes\*\shellex\ContextMenuHandlers\NewFolderExtension'
+            'Software\Classes\Directory\shellex\ContextMenuHandlers\NewFolderExtension'
+            'Software\Classes\Directory\shellex\ContextMenuHandlers\BreakFolder'
           )
           $install = Start-Process -FilePath $manager -ArgumentList '/install' -Wait -PassThru
           if ($install.ExitCode -ne 0) {
             throw "manager /install failed with exit code $($install.ExitCode)."
           }
-          foreach ($key in $keys) {
+          $root = $null
+          foreach ($candidate in @('HKLM:', 'HKCU:')) {
+            if (Test-Path -LiteralPath "$candidate\$($relativeKeys[0])") {
+              $root = $candidate
+              break
+            }
+          }
+          if (-not $root) {
+            throw 'Registration keys are missing under both HKLM and HKCU after /install.'
+          }
+          foreach ($relative in $relativeKeys) {
+            $key = "$root\$relative"
             if (-not (Test-Path -LiteralPath $key)) {
               throw "Registration key is missing after /install: $key"
             }
@@ -83,7 +97,8 @@ jobs:
           if ($uninstall.ExitCode -ne 0) {
             throw "manager /uninstall failed with exit code $($uninstall.ExitCode)."
           }
-          foreach ($key in $keys) {
+          foreach ($relative in $relativeKeys) {
+            $key = "$root\$relative"
             if (Test-Path -LiteralPath $key) {
               throw "Registration key was not removed by /uninstall: $key"
             }
