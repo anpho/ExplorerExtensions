@@ -1,130 +1,140 @@
 [![MSBuild](https://github.com/anpho/ExplorerExtensions/actions/workflows/msbuild.yml/badge.svg)](https://github.com/anpho/ExplorerExtensions/actions/workflows/msbuild.yml)
 [![Create Release](https://github.com/anpho/ExplorerExtensions/actions/workflows/create-release.yml/badge.svg)](https://github.com/anpho/ExplorerExtensions/actions/workflows/create-release.yml)
 
-# ExplorerExtensions
+# anpho's Extensions
 
-English | [简体中文](README_CN.md)
+[English](#english) · [简体中文](#简体中文)
 
-anpho's Extensions adds two commands to the Windows Explorer right-click menu: **New Folder +** and **Break Folders +**. It is a native C++ shell extension for Windows 10 and Windows 11. Installation is per user. It needs no administrator rights, no Visual C++ Redistributable, no .NET, and no MFC.
+Two commands for the Windows Explorer right-click menu: **New Folder +** and **Break Folders +**.
 
-## Features
+| New Folder + | Break Folders + |
+| --- | --- |
+| ![New Folder + in the context menu](doc/nf-cn.jpg) | ![Break Folders + in the context menu](doc/br-cn.jpg) |
 
-### New Folder +
+## English
 
-Select one or more files or folders, right-click, and choose **New Folder +**.
+A native C++ shell extension for Windows 10 and Windows 11 (x86 and x64). It installs per user: no administrator rights, no Visual C++ Redistributable, no .NET, no MFC, no telemetry.
 
-- A new folder is created next to the first selected item.
-- The folder is named after the longest common prefix of the selected names. File extensions are stripped first. If there is no usable common prefix, the name of the first selected item is used.
-- All selected items are moved into the new folder.
-- The move is a shell file operation, so it can be undone with Explorer's Undo (**Ctrl+Z**).
+### Features
 
-The command is hidden when exactly one folder is selected. Files are not affected by this rule.
+#### New Folder +
 
-### Break Folders +
+Select files and/or folders, right-click, and choose **New Folder +**.
 
-Select one or more folders, right-click, and choose **Break Folders +**.
+- A folder is created next to the first selected item, named after the longest common prefix of the selected names (file extensions are stripped). If there is no usable prefix, the first item's name is used.
+- All selected items are moved into it.
+- The command is hidden when exactly one folder is selected.
 
-- For each selected folder, every file below it (at all nesting levels) is moved into that folder's parent folder.
-- The empty folder tree is left in place. Delete it yourself when you no longer need it.
-- The moves are shell file operations, so they can be undone with Explorer's Undo (**Ctrl+Z**).
-- If a move fails, an error dialog is shown instead of failing silently.
+#### Break Folders +
 
-### How to use
+Select one or more folders and choose **Break Folders +**.
 
-1. Select the items in Explorer.
-2. Right-click and choose **New Folder +** or **Break Folders +**.
-3. On Windows 11, click **Show more options** (or press **Shift+F10**) first.
+- Every file at every depth below each selected folder moves to that folder's parent.
+- The empty folder tree is left in place; delete it yourself.
+- If a move fails, an error dialog is shown.
 
-## Requirements
+Both commands use shell file operations, so **Ctrl+Z** in Explorer undoes them.
 
-- Windows 10 or Windows 11, 32-bit or 64-bit.
-- No administrator rights. Everything is installed and registered per user.
-- No Visual C++ Redistributable: the binaries use the static C++ runtime.
-- No .NET and no MFC.
+### Install
 
-## Installation
+1. Download `ExplorerExtensionSetup.exe` from [Releases](https://github.com/anpho/ExplorerExtensions/releases) and run it. No administrator rights are needed. To install for all users, run the installer as administrator.
+2. The installer copies the files to `%LOCALAPPDATA%\ExplorerEnhancement`, registers the extension, adds a Start Menu shortcut for the manager, and writes an uninstall entry.
+3. If the commands do not appear, restart Windows Explorer.
 
-### Installer (recommended)
+On Windows 11 the commands are classic menu entries: click **Show more options** (or press **Shift+F10**).
 
-1. Download `ExplorerExtensionSetup.exe` from [Releases](https://github.com/anpho/ExplorerExtensions/releases).
-2. Run it. No administrator rights are needed; the extension is installed and registered for the current user.
-3. To install for all users, run the installer as administrator. The extension is then registered in `HKLM` and its settings are shared by every user.
-4. The installer copies the files to `%LOCALAPPDATA%\ExplorerEnhancement`, registers the extension, adds a Start Menu shortcut for the manager, and writes an uninstall entry.
-5. If the commands do not appear, restart Windows Explorer.
+Manual installation: extract `Extensions-x86-<version>.zip` or `Extensions-x64-<version>.zip` and run `regsvr32 ExplorerEnhancement_x64.dll` (`x86` on 32-bit Windows) from a normal command prompt. Unregister with `regsvr32 /u`; for all users, run `ExplorerEnhancementManager_<arch>.exe /install` from an elevated prompt. A manual installation creates no shortcuts and no uninstall entry.
 
-### Manual installation
+### Manager
 
-Download `Extensions-x86-<version>.zip` (32-bit Windows) or `Extensions-x64-<version>.zip` (64-bit Windows) from [Releases](https://github.com/anpho/ExplorerExtensions/releases), then extract it.
+The Start Menu shortcut opens the manager, which has one checkbox per command and **Apply**.
 
-Open a normal (non-admin) command prompt in the extracted folder and run the command for your architecture.
+- Opening the manager when the extension is not registered registers it; if Windows blocks per-user COM registration, it offers a UAC-assisted all-users install.
+- **Shift+click Exit** unregisters the extension after a confirmation.
+- The enabled/disabled state is stored per user in `HKCU\Software\anpho\ExplorerEnhancement`.
+- Command line (used by the installer): `/install` and `/uninstall` — no window, exit code `0` on success and `1` on failure.
 
-For 32-bit Windows:
+### Uninstall
 
-```bat
-regsvr32 ExplorerEnhancement_x86.dll
-```
+Use **Settings > Apps > anpho's Extensions > Uninstall**, or run `%LOCALAPPDATA%\ExplorerEnhancement\uninstall.exe` (silent: `/S`). Restart Windows Explorer afterwards.
 
-For 64-bit Windows:
+### Notes
 
-```bat
-regsvr32 ExplorerEnhancement_x64.dll
-```
+- Local and UNC filesystem paths only: no virtual folders, archives, or cloud placeholders.
+- Paths longer than `MAX_PATH` (260 characters) are not supported.
+- **Break Folders +** moves files only; empty folders remain.
+- Release builds are not code-signed, so Windows SmartScreen may warn on first run.
+- The project is proprietary: free for personal, non-commercial use; commercial use requires a paid license (see [LICENSE.md](LICENSE.md)).
 
-Then restart Windows Explorer.
+### Build
 
-Notes:
+See [how-to-build.md](how-to-build.md). GitHub Actions builds tagged releases.
 
-- Registration is per user, so run `regsvr32` as the same user who will use the menu.
-- Use `regsvr32 /u ExplorerEnhancement_<arch>.dll` to unregister.
-- For all users, run the manager with `/install` from an elevated prompt (or `regsvr32 /i:machine`); unregister with `/uninstall` from an elevated prompt.
-- A manual installation creates no Start Menu shortcut and no uninstall entry.
+### Contact
 
-## Enable or disable the commands
+support@anpho.cn · [@anpho](https://x.com/anpho)
 
-The installer adds a Start Menu shortcut for the manager. You can also start `ExplorerEnhancementManager_<arch>.exe` from the install folder. The manager has two checkboxes, **Break Folders +** and **New Folder +**, plus **Apply**, **About** and **Exit**.
+---
 
-- Opening the manager when the extension is not registered registers it automatically: for the current user normally, for all users when the manager is run as administrator.
-- On Windows versions that block per-user COM registration (`HKCU\Software\Classes\CLSID` is hardened, error 5), the manager asks for UAC and installs for all users instead. Declining UAC leaves the extension unregistered.
-- If the extension is registered for all users (installed as administrator), the manager offers to restart itself with administrator rights so the settings can be changed. If you decline, the window is read-only and **Apply** is disabled.
-- After a UAC-assisted installation the manager restarts itself elevated automatically, so you get a usable window instead of a greyed-out one.
-- **Shift+click Exit** (or Shift+close the window) unregisters the extension after a confirmation. Removing an all-users registration requires running the manager as administrator.
-- A disabled command is recorded per user or per machine in `HKCU`/`HKLM` `\Software\anpho\ExplorerEnhancement` (the DLL checks it each time the menu opens).
-- If the change does not show up in an already-open Explorer window, restart Windows Explorer.
+## 简体中文
 
-The manager also has a command-line mode:
+一个原生 C++ Shell 扩展，支持 Windows 10 和 Windows 11（x86 与 x64）。按用户安装：无需管理员权限，不需要 Visual C++ 运行库、.NET 或 MFC，也没有遥测。
 
-- `ExplorerEnhancementManager_<arch>.exe /install` registers the DLL that sits next to the exe.
-- `ExplorerEnhancementManager_<arch>.exe /uninstall` unregisters it.
+### 功能
 
-Both run without a window and return exit code `0` on success and `1` on failure. The installer uses them.
+#### 新建文件夹+
 
-## Uninstall
+选中文件或文件夹，右键选择 **新建文件夹+**。
 
-- Open **Settings > Apps**, find **anpho's Extensions**, and click **Uninstall**.
-- Or run `%LOCALAPPDATA%\ExplorerEnhancement\uninstall.exe`.
-- The uninstaller runs the manager with `/uninstall`, then removes the files, the Start Menu shortcuts, the uninstall entry, and the per-user registration and settings.
-- Silent uninstall: `uninstall.exe /S`.
-- Restart Windows Explorer afterwards.
+- 在第一个选中项旁创建文件夹，名称取所选名称的最长公共前缀（先去掉文件扩展名）。没有可用的公共前缀时，使用第一项的名称。
+- 所有选中项都会移入该文件夹。
+- 恰好只选中一个文件夹时，该命令不显示。
 
-## Notes and limitations
+#### 摊开文件夹+
 
-- **Windows 11 menu:** the commands are classic context-menu handlers. They appear under **Show more options** (Shift+F10), not in the new Windows 11 top-level menu.
-- **Filesystem items only:** the commands work on local paths and UNC paths. Items from virtual folders, archives, or cloud storage that are not real filesystem paths are not supported.
-- **Empty folders remain:** **Break Folders +** moves files only. The empty folder tree stays in place until you delete it.
-- **Long paths:** paths longer than `MAX_PATH` (260 characters) are not handled.
-- **Single folder selection:** **New Folder +** is hidden when exactly one folder is selected.
+选中一个或多个文件夹，右键选择 **摊开文件夹+**。
 
-## Build
+- 所选文件夹下所有层级的所有文件都移动到该文件夹的上一级。
+- 空的文件夹结构会保留在原位，请自行删除。
+- 移动失败时会弹出错误对话框。
 
-See [how-to-build.md](how-to-build.md) for the build prerequisites, the local build and installer steps, versioning, and the release process. GitHub Actions builds tagged releases.
+两个命令都使用 Shell 文件操作，可用资源管理器的 **Ctrl+Z** 撤销。
 
-## License
+### 安装
 
-This project is proprietary software. Personal non-commercial use is free. Any commercial use requires a paid license; contact support@anpho.cn to obtain one.
+1. 从 [Releases](https://github.com/anpho/ExplorerExtensions/releases) 下载 `ExplorerExtensionSetup.exe` 并运行。无需管理员权限；如需安装给所有用户，请以管理员身份运行安装程序。
+2. 安装程序会把文件复制到 `%LOCALAPPDATA%\ExplorerEnhancement`，注册扩展，为管理器创建开始菜单快捷方式，并写入卸载条目。
+3. 如果命令没有出现，请重启 Windows 资源管理器。
 
-See [LICENSE.md](LICENSE.md) for the full terms.
+Windows 11 上这两个命令属于传统菜单项：点击 **显示更多选项**（或按 **Shift+F10**）。
 
-## Contact
+手动安装：解压 `Extensions-x86-<version>.zip` 或 `Extensions-x64-<version>.zip`，在普通命令提示符中运行 `regsvr32 ExplorerEnhancement_x64.dll`（32 位 Windows 使用 `x86`）。用 `regsvr32 /u` 注销；要给所有用户安装，请以管理员身份运行 `ExplorerEnhancementManager_<arch>.exe /install`。手动安装不会创建快捷方式，也不会写入卸载条目。
 
-- Email: support@anpho.cn
-- X (Twitter): [@anpho](https://x.com/anpho)
+### 管理器
+
+开始菜单快捷方式可打开管理器，其中每个命令对应一个复选框，另有 **应用** 按钮。
+
+- 扩展未注册时打开管理器会自动注册；如果 Windows 禁止用户级 COM 注册，会提供经 UAC 的“所有用户”安装。
+- **按住 Shift 点「退出」** 会在确认后注销扩展。
+- 启用/禁用状态按用户保存在 `HKCU\Software\anpho\ExplorerEnhancement`。
+- 命令行（安装程序使用）：`/install` 和 `/uninstall` —— 不显示窗口，成功返回 `0`，失败返回 `1`。
+
+### 卸载
+
+打开 **设置 > 应用 > anpho's Extensions > 卸载**，或运行 `%LOCALAPPDATA%\ExplorerEnhancement\uninstall.exe`（静默：`/S`）。之后重启 Windows 资源管理器。
+
+### 说明
+
+- 仅支持本地和 UNC 文件系统路径：不支持虚拟文件夹、压缩包或网盘占位文件。
+- 不支持超过 `MAX_PATH`（260 个字符）的路径。
+- **摊开文件夹+** 只移动文件，空文件夹会保留。
+- 发布版本未做代码签名，首次运行时 Windows SmartScreen 可能提示。
+- 本项目为专有软件：个人非商业使用免费；商业使用需要付费许可证（见 [LICENSE.md](LICENSE.md)）。
+
+### 构建
+
+见 [how-to-build.md](how-to-build.md)。GitHub Actions 会构建标签发布的版本。
+
+### 联系方式
+
+support@anpho.cn · [@anpho](https://x.com/anpho)
