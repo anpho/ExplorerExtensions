@@ -9,7 +9,7 @@ Two commands for the Windows Explorer right-click menu: **New Folder +** and **B
 
 | New Folder + | Break Folders + |
 | --- | --- |
-| ![New Folder + in the context menu](doc/nf-cn.jpg) | ![Break Folders + in the context menu](doc/br-cn.jpg) |
+| ![New Folder + in the context menu](docs/nf-cn.jpg) | ![Break Folders + in the context menu](docs/br-cn.jpg) |
 
 ## English
 
