@@ -95,16 +95,11 @@ For a release, do not edit the header by hand. The release workflow overwrites `
 
 ## Release (maintainers)
 
-Releases are built and signed by GitHub Actions.
+Releases are built by GitHub Actions.
 
-- `.github/workflows/msbuild.yml` builds every push and pull request. It does not sign or publish anything.
-- `.github/workflows/create-release.yml` runs when a tag is pushed. It validates the tag and derives the four-part version, overwrites `src\version.h`, builds Release x86 and x64, signs the binaries, builds the installer and the two zips, and publishes the GitHub release with the artifacts.
+- `.github/workflows/msbuild.yml` builds every push and pull request. It does not publish anything.
+- `.github/workflows/create-release.yml` runs when a tag is pushed. It validates the tag and derives the four-part version, overwrites `src\version.h`, builds Release x86 and x64, builds the installer and the two zips, and publishes the GitHub release with the artifacts.
 - Both workflows run on the `windows-2022` runner image (Visual Studio 2022, v143 toolset with ATL). `windows-latest` currently points to the Visual Studio 2026 image, where the v143 toolset is installed for compatibility without ATL headers, so the build fails with `atlbase.h` not found. If you migrate to VS 2026, change the runner image and the project toolset together.
-
-Signing requirements (repository secrets):
-
-- `PFX_CERTIFICATE` - the code-signing certificate as a Base64-encoded PFX.
-- `PFX_PASSWORD` - the PFX password.
 
 Publishing requirements:
 

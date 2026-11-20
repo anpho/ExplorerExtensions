@@ -120,7 +120,7 @@ regsvr32 ExplorerEnhancement_x64.dll
 
 ## 构建
 
-构建方式见 [how-to-build-cn.md](how-to-build-cn.md)，其中包括构建前提、本地构建与安装程序构建步骤、版本号管理和发布流程。GitHub Actions 会构建并签名标签发布的版本。
+构建方式见 [how-to-build-cn.md](how-to-build-cn.md)，其中包括构建前提、本地构建与安装程序构建步骤、版本号管理和发布流程。GitHub Actions 会构建标签发布的版本。
 
 ## 许可证
 

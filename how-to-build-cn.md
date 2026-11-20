@@ -95,16 +95,11 @@ src\build\ExplorerEnhancementManager_x64.exe /uninstall
 
 ## 发布（维护者）
 
-发布版本由 GitHub Actions 构建并签名。
+发布版本由 GitHub Actions 构建。
 
-- `.github/workflows/msbuild.yml` 会在每次推送和拉取请求时构建，不签名，也不发布任何内容。
-- `.github/workflows/create-release.yml` 在推送标签时运行。它会校验标签并推导出四段版本号，覆盖 `src\version.h`，构建 Release x86 和 x64，签名程序，构建安装程序和两个压缩包，并发布带产物的 GitHub Release。
+- `.github/workflows/msbuild.yml` 会在每次推送和拉取请求时构建，不发布任何内容。
+- `.github/workflows/create-release.yml` 在推送标签时运行。它会校验标签并推导出四段版本号，覆盖 `src\version.h`，构建 Release x86 和 x64，构建安装程序和两个压缩包，并发布带产物的 GitHub Release。
 - 两个工作流都固定在 `windows-2022` 运行镜像（Visual Studio 2022，v143 工具集带 ATL）。`windows-latest` 目前指向 Visual Studio 2026 镜像，其中的 v143 只是兼容工具集、不带 ATL 头文件，构建会报找不到 `atlbase.h`。如果要迁移到 VS 2026，请同时修改运行镜像和项目工具集。
-
-签名要求（仓库密钥）：
-
-- `PFX_CERTIFICATE` - Base64 编码的 PFX 代码签名证书。
-- `PFX_PASSWORD` - PFX 密码。
 
 发布要求：
 

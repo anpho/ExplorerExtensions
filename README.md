@@ -116,7 +116,7 @@ Both run without a window and return exit code `0` on success and `1` on failure
 
 ## Build
 
-See [how-to-build.md](how-to-build.md) for the build prerequisites, the local build and installer steps, versioning, and the release process. GitHub Actions builds and signs tagged releases.
+See [how-to-build.md](how-to-build.md) for the build prerequisites, the local build and installer steps, versioning, and the release process. GitHub Actions builds tagged releases.
 
 ## License
 
